@@ -2,7 +2,7 @@
 
 # Jev or a fine-tuned small model? An accounts payable pipeline that uses both
 
-**Jev for the decisions it can read off the input, a fine-tuned 4B model for the ones that need arithmetic and a written answer. 197 of 200 messages handled correctly end to end, with no frontier model call, runnable on a laptop.**
+**Jev for the decisions that can be read off the input, a fine-tuned 4B model for the ones that have to be worked out and written down. 197 of 200 messages handled correctly end to end, with no frontier model call, runnable on a laptop.**
 
 Jev, TypeSafe AI's System One model, answers typed questions about a piece of text in under half a second for a few cents per thousand calls. It does not write text and it answers in one pass. This repo is a two-step accounts payable pipeline built to find out where that is enough, where it is not, and what a small model fine-tuned on the [distil labs](https://www.distillabs.ai) platform does in the places where it is not.
 
@@ -49,12 +49,22 @@ Jev, TypeSafe AI's System One model, answers typed questions about a piece of te
 
 **ERP lookup.** Plain code finds the purchase order and the goods receipt that belong to the invoice. In this repo a JSON file stands in for the ERP.
 
-**Step 2, pay it or hold it.** A fine-tuned Qwen3.5-4B, trained to reason before it answers, reads the invoice message, the purchase order and the goods receipt, and runs four checks in order: the PO number matches, no line bills more than was received, no price is more than 2% above the PO price, the total adds up. We built this step twice, because it shows two different limits of Jev:
+**Step 2, pay it or hold it.** A fine-tuned Qwen3.5-4B, trained to reason before it answers, reads the invoice message, the purchase order and the goods receipt, and runs four checks in order: the PO number matches, no line bills more than was received, no price is more than 2% above the PO price, the total adds up. The decision cannot be read off the documents; it has to be worked out by connecting the three documents, following the checks in order and doing some maths. We built this step twice, because it shows two different limits of Jev:
 
 - **Step 2a, the decision only.** The answer is one of five labels: `approve`, `hold_no_po`, `hold_quantity`, `hold_price`, `hold_total`. That is the same kind of output as step 1, a choice, so Jev can be compared like for like. It exists for the comparison only.
 - **Step 2b, the decision plus what is wrong and where.** The answer is a JSON object with six fields: the decision, the invoice number, the PO number, the item that failed, and the two values that disagree. This is what a clerk can act on, and it is what the pipeline uses. Jev cannot return text, so it cannot produce it.
 
 ## Results
+
+**Which tool for which problem**
+
+| Kind of problem | In this pipeline | Use | Measured |
+|---|---|---|---|
+| **Easy classification**: the answer can be read off the input | Step 1, inbox triage | Jev, or a tiny fine-tuned model (0.8B) | Jev 1.00, fine-tuned Qwen3.5-0.8B 1.00 |
+| **Harder classification**: the answer has to be worked out, by connecting facts across documents, following multi-step rules, doing maths | Step 2a, pay or hold | A fine-tuned small model that reasons (4B) | Jev 0.84, fine-tuned Qwen3.5-4B 0.98 |
+| **Classification plus any other output**: extracted values, identifiers, text | Step 2b, pay or hold plus what is wrong and where | A fine-tuned small model (4B) | Jev cannot produce it, fine-tuned Qwen3.5-4B 0.97 |
+
+**All models, all steps**
 
 | Model | Step 1: triage (accuracy ↑) | Step 2a: decision (LLM-as-a-judge ↑) | Step 2b: decision + what is wrong and where (LLM-as-a-judge ↑) |
 |---|---|---|---|
@@ -94,13 +104,12 @@ Breakdowns by kind of message and kind of invoice are in [Results in detail](#re
 
 ## Jev or a small model
 
-- **Classification: use Jev.** 200 of 200 on triage, including all 49 misleading messages. Fastest (0.36 s) and cheapest (USD 0.029 per 1,000 messages) of everything we tried, and the only setup is five label definitions.
-- **Classification on your own hardware: fine-tune a 0.8B model.** Same 200 of 200. Untuned, the same model scores 0.70.
-- **Decisions that need arithmetic: not a one-pass model, Jev included.** One-pass models score 75 to 84 of 100; models that reason score 96 to 100. Jev's best setup caught 0 of 16 wrong totals. The fine-tuned 4B model that reasons scores 98, up from 0.41 untuned.
-- **Answers that contain text: Jev cannot produce them.** It returns a choice, a score or a probability. The fine-tuned 4B model gets all six fields right on 97 of 100 invoices, level with hosted models that reason and 21 points above the ones that do not.
+- **Easy classification: Jev, or a tiny fine-tuned model.** When the answer can be read off the input, Jev scores 200 of 200 on triage, including all 49 misleading messages, and it is the fastest (0.36 s) and cheapest (USD 0.029 per 1,000 messages) option with no setup beyond five label definitions. A fine-tuned Qwen3.5-0.8B scores the same 200 of 200 on your own hardware; untuned it scores 0.70.
+- **Harder classification: a fine-tuned small model that reasons.** When the answer has to be worked out (connecting facts across documents, multi-step rules, maths), models that answer in one pass score 75 to 84 of 100, Jev included, and models that reason score 96 to 100. Step 2 needs all three: match each invoice line to its PO and receipt line, apply four checks in order, compute price ceilings and a total. The fine-tuned Qwen3.5-4B scores 98, up from 0.41 untuned. Jev's best setup caught 0 of 16 wrong totals.
+- **Classification plus any other output: a fine-tuned small model.** Jev returns a choice, a score or a probability, never extracted values or text. The fine-tuned Qwen3.5-4B gets all six fields right on 97 of 100 invoices, level with hosted models that reason and 21 points above the ones that do not.
 - **Both together: 197 of 200 messages handled correctly**, with no routing errors and no frontier model call.
 
-Jev is not weak at classification: in earlier pilots it also scored 50 of 50 on general ledger coding with 12 written conventions ([`benchmarking/pilots/`](benchmarking/pilots/)). Its limit is the design: one pass, and a choice as output.
+Jev is not weak at classification: in earlier pilots it also scored 50 of 50 on general ledger coding with 12 written conventions ([`benchmarking/pilots/`](benchmarking/pilots/)). TypeSafe documents the same boundary: its [Jev 1.13 jaggedness page](https://docs.typesafe.ai/model-jaggedness/jev-1.13) says that questions needing multiple hops of reasoning or extra indirection cost accuracy, that dates are read as text and not as ordered quantities, and that Jev struggles with tasks needing numeric precision. The limit is the design: one pass, and a choice as output.
 
 ## Quick start
 
@@ -388,7 +397,7 @@ How we kept the comparison fair:
 
 **Why fine-tune instead of calling a hosted model that reasons?** Those models score 96 to 100 here, so accuracy is not the reason. The reasons are running on your own hardware, no per-call cost, data that stays with you, and a fixed model version. Untuned small models are not an option: 0.41 and 0.12.
 
-**Why does the 4B model reason, and why so briefly?** Without reasoning the task is not solvable in one pass. The reasoning is short because the training data contains only short reasoning in a fixed format. Median output is about 160 tokens of reasoning plus the answer.
+**Why does the 4B model reason, and why so briefly?** The decision has to be worked out across three documents, and no model we tried gets it right in one pass. The reasoning is short because the training data contains only short reasoning in a fixed format. Median output is about 160 tokens of reasoning plus the answer.
 
 **What does it get wrong?** Additions over large line totals. All five errors of the two 4B models across 200 test answers are slips in the running sum. Route `hold_total` decisions and invoices above a threshold to a person, or recompute the sum in code from the model's own reasoning lines.
 
