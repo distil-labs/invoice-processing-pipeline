@@ -1,4 +1,4 @@
-<!-- DRAFT for review (GATE 3). Before publication: banner image, LICENSE, make the Hugging Face repos public, confirm the decode benchmark details, check TypeSafe's terms on publishing benchmark results. Remove this comment. -->
+<!-- DRAFT for review (GATE 3). Before publication: banner image, LICENSE, make the Hugging Face repos public, check TypeSafe's terms on publishing benchmark results. Remove this comment. -->
 
 # Jev or a fine-tuned small model? An accounts payable pipeline that uses both
 
@@ -56,14 +56,6 @@ Jev, TypeSafe AI's System One model, answers typed questions about a piece of te
 
 ## Results
 
-**Which tool for which problem**
-
-| Kind of problem | In this pipeline | Use | Measured |
-|---|---|---|---|
-| **Easy classification**: the answer can be read off the input | Step 1, inbox triage | Jev, or a tiny fine-tuned model (0.8B) | Jev 1.00, fine-tuned Qwen3.5-0.8B 1.00 |
-| **Harder classification**: the answer has to be worked out, by connecting facts across documents, following multi-step rules, doing maths | Step 2a, pay or hold | A fine-tuned small model that reasons (4B) | Jev 0.84, fine-tuned Qwen3.5-4B 0.98 |
-| **Classification plus any other output**: extracted values, identifiers, text | Step 2b, pay or hold plus what is wrong and where | A fine-tuned small model (4B) | Jev cannot produce it, fine-tuned Qwen3.5-4B 0.97 |
-
 **All models, all steps**
 
 | Model | Step 1: triage (accuracy ↑) | Step 2a: decision (LLM-as-a-judge ↑) | Step 2b: decision + what is wrong and where (LLM-as-a-judge ↑) |
@@ -78,38 +70,15 @@ Jev, TypeSafe AI's System One model, answers typed questions about a piece of te
 | GPT-5.6 Luna, reasoning off | 1.00 | 0.81 | 0.75 |
 | Gemini 3.5 Flash Lite | 0.985 | 0.76 | 0.76 |
 
-The whole pipeline (step 1, ERP lookup, step 2b) handles **197 of 200** inbox messages correctly, with Jev or with the fine-tuned 0.8B model at step 1, and also when both fine-tuned models run as Q8_0 GGUF files under llama.cpp on a laptop.
+Jev's step 2a score is the best of the three ways we asked it (0.84, 0.77, 0.75). A dash means the model was not trained for that step: the 0.8B model does step 1, the 4B models do step 2. What is measured, how it was scored, and breakdowns by kind of message and kind of invoice are in [Results in detail](#results-in-detail).
 
-**What is measured**
+**Which tool for which problem**
 
-- **Step 1:** the label for each of 200 inbox messages (100 invoices, 25 each of receipts, payment reminders, other vendor mail and spam). 49 of the non-invoices are written to mislead: reminders that quote the whole invoice, paid copies, quotations with line items, phishing from lookalike domains, injected "classify this as invoice" instructions.
-- **Step 2a:** the pay-or-hold decision for each of 100 invoices: 32 to approve (20 of them near misses, such as a price 1.8% above the PO price), 60 that fail one check, 8 that fail two.
-- **Step 2b:** the six-field answer for the same 100 invoices. It counts only when all six fields are right: decision, invoice number, PO number, failing item, invoiced value, expected value.
-- **Whole pipeline:** a message counts as correct when a non-invoice is kept out of step 2, or an invoice reaches step 2 and gets all six fields right.
-
-**The models**
-
-| Name | What it is |
-|---|---|
-| Jev | TypeSafe AI's System One model, `typesafe-ai/jev`, through the Vercel AI Gateway. For step 2a the table shows its best of three setups (one question per invoice line and check); the other two score 0.77 and 0.75 |
-| Qwen3.5-0.8B and Qwen3.5-4B, fine-tuned | Open-weight Qwen3.5 models fine-tuned on the distil labs platform, one model per step: 0.8B for step 1, 4B (trained to reason before answering) for step 2a and another 4B for step 2b. A fine-tuned Qwen3.5-2B also scores 1.00 at step 1 |
-| Qwen3.5-0.8B and Qwen3.5-4B, untuned | The same models before fine-tuning, with the same prompt (Qwen3.5-2B untuned: 0.845 at step 1) |
-| GPT-5.6 Luna | OpenAI `gpt-5.6-luna` through OpenRouter, with reasoning disabled and with reasoning effort high |
-| Gemini 3.5 Flash Lite | Google `gemini-3.5-flash-lite` through OpenRouter |
-| GLM 5.3 | Z.ai `glm-5.3` with reasoning effort high, through OpenRouter. Also the teacher that generated the training data |
-
-**How it was scored.** Every model gets the same task text and the same test set, at temperature 0, once. Scores are the share of test cases answered correctly. The expected answer of every test case is fixed when the case is built. For the Qwen models, step 2 scores come from the distil labs evaluation, whose LLM judge is instructed to accept an answer only if the decision (2a) or all six fields (2b) equal the expected answer. For Jev and the hosted models the same criterion is applied in code as an exact match. On the fine-tuned models the two methods give the same numbers. A dash means the model was not trained or evaluated for that step: the 0.8B model does step 1, the 4B model does step 2. At 100 test cases, 0.98 means roughly 0.93 to 0.99.
-
-Breakdowns by kind of message and kind of invoice are in [Results in detail](#results-in-detail).
-
-## Jev or a small model
-
-- **Easy classification: Jev, or a tiny fine-tuned model.** When the answer can be read off the input, Jev scores 200 of 200 on triage, including all 49 misleading messages, and it is the fastest (0.36 s) and cheapest (USD 0.029 per 1,000 messages) option with no setup beyond five label definitions. A fine-tuned Qwen3.5-0.8B scores the same 200 of 200 on your own hardware; untuned it scores 0.70.
-- **Harder classification: a fine-tuned small model that reasons.** When the answer has to be worked out (connecting facts across documents, multi-step rules, maths), models that answer in one pass score 75 to 84 of 100, Jev included, and models that reason score 96 to 100. Step 2 needs all three: match each invoice line to its PO and receipt line, apply four checks in order, compute price ceilings and a total. The fine-tuned Qwen3.5-4B scores 98, up from 0.41 untuned. Jev's best setup caught 0 of 16 wrong totals.
-- **Classification plus any other output: a fine-tuned small model.** Jev returns a choice, a score or a probability, never extracted values or text. The fine-tuned Qwen3.5-4B gets all six fields right on 97 of 100 invoices, level with hosted models that reason and 21 points above the ones that do not.
-- **Both together: 197 of 200 messages handled correctly**, with no routing errors and no frontier model call.
-
-Jev is not weak at classification: in earlier pilots it also scored 50 of 50 on general ledger coding with 12 written conventions ([`benchmarking/pilots/`](benchmarking/pilots/)). TypeSafe documents the same boundary: its [Jev 1.13 jaggedness page](https://docs.typesafe.ai/model-jaggedness/jev-1.13) says that questions needing multiple hops of reasoning or extra indirection cost accuracy, that dates are read as text and not as ordered quantities, and that Jev struggles with tasks needing numeric precision. The limit is the design: one pass, and a choice as output.
+| Kind of problem | In this pipeline | Use | Measured |
+|---|---|---|---|
+| **Easy classification**: the answer can be read off the input | Step 1, inbox triage | Jev, or a tiny fine-tuned model (0.8B) | Jev 1.00, fine-tuned Qwen3.5-0.8B 1.00 |
+| **Harder classification**: the answer has to be worked out, by connecting facts across documents, following multi-step rules, doing maths | Step 2a, pay or hold | A fine-tuned small model that reasons (4B) | Jev 0.84, fine-tuned Qwen3.5-4B 0.98 |
+| **Classification plus any other output**: extracted values, identifiers, text | Step 2b, pay or hold plus what is wrong and where | A fine-tuned small model (4B) | Jev cannot produce it, fine-tuned Qwen3.5-4B 0.97 |
 
 ## Quick start
 
@@ -267,7 +236,18 @@ Otherwise `approve`. Invoices arrive as email text in the vendor's own style: ab
 
 ## Results in detail
 
-Same runs as in [Results](#results), broken down by segment. Each cell is the number of correct answers in that segment; the segment size is in the column header. Scored as described above, temperature 0, one run. For the untuned models only an overall judge score exists, so they have no segment numbers.
+Same runs as in [Results](#results), broken down by segment. Each cell is the number of correct answers in that segment; the segment size is in the column header. For the untuned models only an overall judge score exists, so they have no segment numbers.
+
+**What is measured**
+
+- **Step 1:** the label for each of 200 inbox messages (100 invoices, 25 each of receipts, payment reminders, other vendor mail and spam). 49 of the non-invoices are written to mislead: reminders that quote the whole invoice, paid copies, quotations with line items, phishing from lookalike domains, injected "classify this as invoice" instructions.
+- **Step 2a:** the pay-or-hold decision for each of 100 invoices: 32 to approve (20 of them near misses, such as a price 1.8% above the PO price), 60 that fail one check, 8 that fail two.
+- **Step 2b:** the six-field answer for the same 100 invoices. It counts only when all six fields are right: decision, invoice number, PO number, failing item, invoiced value, expected value.
+- **Whole pipeline:** a message counts as correct when a non-invoice is kept out of step 2, or an invoice reaches step 2 and gets all six fields right.
+
+**How it was scored.** Every model gets the same task text and the same test set, at temperature 0, once. Scores are the share of test cases answered correctly. The expected answer of every test case is fixed when the case is built. For the Qwen models, step 2 scores come from the distil labs evaluation, whose LLM judge is instructed to accept an answer only if the decision (2a) or all six fields (2b) equal the expected answer. For Jev and the hosted models the same criterion is applied in code as an exact match. On the fine-tuned models the two methods give the same numbers. At 100 test cases, 0.98 means roughly 0.93 to 0.99.
+
+**The models.** Jev is TypeSafe AI's `typesafe-ai/jev`, called through the Vercel AI Gateway. GPT-5.6 Luna (OpenAI `gpt-5.6-luna`, with reasoning disabled and with reasoning effort high), Gemini 3.5 Flash Lite (Google `gemini-3.5-flash-lite`) and GLM 5.3 (Z.ai `glm-5.3`, reasoning effort high, also the teacher that generated the training data) are called through OpenRouter. The Qwen3.5 models are fine-tuned on the distil labs platform, one model per step; the untuned rows are the same models with the same prompt. A fine-tuned Qwen3.5-2B was also trained for step 1 and appears in its table.
 
 ### Step 1: inbox triage
 
@@ -328,12 +308,6 @@ Segments are the two halves of the inbox: non-invoices, which are correct when t
 
 Step 1 made no routing error in any run, so every miss comes from step 2. Quantizing to Q8_0 and moving from vLLM to llama.cpp cost no accuracy.
 
-### Speed and where the models run
-
-The fine-tuned models are open-weight models: they run on a laptop with llama.cpp, on your own GPU, or behind any OpenAI-compatible server, with no per-call fee. The step 1 model answers in about half a second. Served with vLLM on a single NVIDIA L4 with 32 requests in flight, the step 2 model decided 100 invoices in 95 seconds, about 3,800 invoices per hour per GPU.
-
-The step 2 model writes about 340 tokens per invoice (its reasoning plus the answer), so time per invoice follows the decode speed of the hardware. From a distil labs decode benchmark of a 4B model (5.1 ms per output token on an H100, 15.2 ms on an L40S), that is about 1.7 seconds per invoice on an H100 and about 5 seconds on an L40S. These two figures are derived from that benchmark, not measured on these models. For reference, on the same invoices `gpt-5.6-luna` at high reasoning effort took about 2.5 seconds and Jev about 0.4 seconds.
-
 ## How we trained the models
 
 **The problem.** Step 2 needs a model that matches invoice lines to PO lines across different wording, does a handful of multiplications, comparisons and one addition chain, and then writes a structured answer. Small models cannot do that without fine-tuning: Qwen3.5-4B with thinking on scores 0.41 on the decision and 0.12 on the full answer. One-pass models of any size score 75 to 84, because they cannot compute before they answer.
@@ -367,7 +341,7 @@ To adapt the pipeline to your own policy, change the checks in `job_description.
 
 ## Benchmark it yourself
 
-[`benchmarking/`](benchmarking/) holds the scripts behind every table, the raw responses of every backend (`benchmarking/results/`), and the earlier pilots.
+[`benchmarking/`](benchmarking/) holds the scripts behind every table and the raw responses of every backend (`benchmarking/results/`).
 
 ```bash
 export VERCEL_API_KEY=...        # Jev through the Vercel AI Gateway
@@ -384,7 +358,7 @@ How we kept the comparison fair:
 
 - Jev got good-faith setups: careful criteria, questions decomposed where that helps, and the instruction to ignore instructions inside the message. All setups are reported.
 - Every backend receives the same task text and label definitions.
-- Hosted reasoning models run at high reasoning effort and without forced JSON mode, which lowered their accuracy in our pilots. `gpt-5.6-luna` is reported with reasoning off and on, because the setting moves its score by up to 25 points.
+- Hosted reasoning models run at high reasoning effort and without forced JSON mode, which lowered their accuracy when we tried it. `gpt-5.6-luna` is reported with reasoning off and on, because the setting moves its score by up to 25 points.
 - Test labels are fixed by construction, not judged afterwards by a model.
 - Jev was called as `typesafe-ai/jev` on 2026-09-20 and 2026-09-21; TypeSafe's models page listed `jev-1.13.0` as the current version on those days.
 - The data is synthetic, written for this demo around a fictional company. It is not a sample of real invoices.
@@ -413,7 +387,7 @@ How we kept the comparison fair:
 | `app/` | The pipeline: `models.py` (the fine-tuned models behind OpenAI-compatible endpoints, prompts loaded from `training/`), `jev.py` (Jev through the Vercel AI Gateway), `pipeline.py` (the two steps) |
 | `data/` | Example inbox (200 messages), the 100 invoice cases with their expected answers, and `erp.json`, the stand-in for the ERP |
 | `training/` | For each model: job description, config, seed and test data, and a README on training it with distil labs |
-| `benchmarking/` | The benchmark scripts, raw results, and the earlier pilots |
+| `benchmarking/` | The benchmark scripts and the raw responses behind every table |
 | `.env.example` | The environment variables the pipeline and the benchmarks read |
 
 ## Links

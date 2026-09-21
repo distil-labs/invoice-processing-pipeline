@@ -14,7 +14,7 @@ REPO_DIR = Path(__file__).parent.parent
 RESULTS_DIR = Path(__file__).parent / "results"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 WORKERS = 8
-# Reasoning models run at effort high and without JSON mode: forcing JSON mode lowered their accuracy in our pilots.
+# Reasoning models run at effort high and without JSON mode: forcing JSON mode lowered their accuracy when we tried it.
 HOSTED = {
     "gemini-3.5-flash-lite": {"model": "google/gemini-3.5-flash-lite"},
     "gpt-5.6-luna": {"model": "openai/gpt-5.6-luna", "reasoning": {"effort": "none"}},

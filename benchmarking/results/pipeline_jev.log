@@ -1,9 +1,0 @@
-stage 1 backend: jev | messages: 200 (100 invoices)
-stage 1 label correct: 200/200 | invoices missed: 0 | non-invoices sent to stage 2: 0
-end to end correct (right routing, and all six fields right for invoices): 197/200
-invoices with the right decision: 99/100 | with all six fields right: 97/100
-median latency: stage 1 0.42 s | stage 2b 18.42 s
-wall clock for 200 messages at 8 concurrent: 243 s (1214 s per 1,000) | stage 1 API cost per 1,000 messages: USD 0.029
-  wrong: IT014 gold invoice | label invoice | decision {'decision': 'hold_total', 'invoice_number': 'CT-57480', 'po_number': 'PO-62439', 'item': None, 'invoiced': 5163.75, 'expected': 5248.75} 
-  wrong: IT077 gold invoice | label invoice | decision {'decision': 'hold_total', 'invoice_number': 'NM-24270', 'po_number': 'PO-53292', 'item': None, 'invoiced': 8046.0, 'expected': 8006.0} 
-  wrong: IT115 gold invoice | label invoice | decision {'decision': 'hold_total', 'invoice_number': 'NM-91765', 'po_number': 'PO-52187', 'item': None, 'invoiced': 16692.5, 'expected': 16682.5} 
