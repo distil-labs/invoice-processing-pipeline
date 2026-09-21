@@ -1,70 +1,117 @@
-"""The fine-tuned models: system prompts come from training/, endpoints come from environment variables."""
+"""The fine-tuned models, served behind any OpenAI-compatible endpoint (llama.cpp, vLLM, a distil labs deployment)."""
 
 import json
 import os
 import re
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Mapping
 
 from openai import OpenAI
 
-REPO_DIR = Path(__file__).parent.parent
-# name -> environment variable prefix and whether the model was trained to reason before answering
-MODELS = {
-    "triage": {"env": "TRIAGE", "thinking": False},
-    "decider": {"env": "DECIDER", "thinking": True},
-    "grounded": {"env": "GROUNDED", "thinking": True},
-}
+TRAINING_DIR = Path(__file__).parent.parent / "training"
+END_OF_REASONING = "</think>"
 
 
-def system_prompt(name: str) -> str:
-    """Return the prompt a model was trained with: the task description of its training job."""
-    job = json.loads((REPO_DIR / "training" / name / "job_description.json").read_text())
-    return job["task_description"]
+@dataclass(frozen=True)
+class ModelSpec:
+    """What the pipeline knows about one fine-tuned model."""
+
+    name: str
+    env_prefix: str
+    reasons_before_answering: bool
+
+    @property
+    def system_prompt(self) -> str:
+        """The prompt the model was trained with: the task description of its training job."""
+        job_description = json.loads((TRAINING_DIR / self.name / "job_description.json").read_text())
+        return job_description["task_description"]
 
 
-def triage_labels() -> dict[str, str]:
-    """Parse the triage label definitions out of the triage prompt."""
-    return dict(re.findall(r"^- (\w+): (.+)$", system_prompt("triage"), flags=re.M))
+TRIAGE = ModelSpec(name="triage", env_prefix="TRIAGE", reasons_before_answering=False)
+DECIDER = ModelSpec(name="decider", env_prefix="DECIDER", reasons_before_answering=True)
+GROUNDED = ModelSpec(name="grounded", env_prefix="GROUNDED", reasons_before_answering=True)
 
 
-def read_answer(content: str) -> dict:
-    """Parse the JSON object in a model answer; return {} when there is none."""
-    match = re.search(r"\{.*\}", content or "", flags=re.S)
-    try:
-        answer = json.loads(match.group(0)) if match else {}
-    except json.JSONDecodeError:
-        answer = {}
-    return answer if isinstance(answer, dict) else {}
+@dataclass(frozen=True)
+class Endpoint:
+    """Where a model is served."""
 
+    base_url: str
+    api_key: str = "EMPTY"
+    served_model_name: str = "model"
 
-class SlmClient:
-    """One fine-tuned model behind an OpenAI-compatible endpoint (llama.cpp, vLLM, or a distil labs deployment)."""
-
-    def __init__(self, name: str):
-        prefix = MODELS[name]["env"]
-        base_url = os.environ.get(f"{prefix}_BASE_URL")
+    @classmethod
+    def from_env(cls, env_prefix: str) -> "Endpoint":
+        """Read <PREFIX>_BASE_URL, <PREFIX>_API_KEY and <PREFIX>_MODEL."""
+        base_url = os.environ.get(f"{env_prefix}_BASE_URL")
         if not base_url:
-            raise RuntimeError(f"Set {prefix}_BASE_URL (and {prefix}_API_KEY if the server needs one). See .env.example.")
-        self.thinking = MODELS[name]["thinking"]
-        self.model = os.environ.get(f"{prefix}_MODEL", "model")
-        self.system = system_prompt(name)
-        self.client = OpenAI(base_url=base_url.rstrip("/"), api_key=os.environ.get(f"{prefix}_API_KEY", "EMPTY"))
-
-    def ask(self, text: str) -> dict:
-        """Send one input with the training-time setup: trained system prompt, temperature 0, trained thinking mode."""
-        start = time.time()
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "system", "content": self.system}, {"role": "user", "content": text}],
-            temperature=0,
-            extra_body={"chat_template_kwargs": {"enable_thinking": self.thinking}},
+            raise RuntimeError(f"Set {env_prefix}_BASE_URL (and {env_prefix}_API_KEY if the server needs one). See .env.example.")
+        return cls(
+            base_url=base_url.rstrip("/"),
+            api_key=os.environ.get(f"{env_prefix}_API_KEY", "EMPTY"),
+            served_model_name=os.environ.get(f"{env_prefix}_MODEL", "model"),
         )
-        latency = time.time() - start
-        message = response.choices[0].message
-        reasoning = getattr(message, "reasoning_content", None) or ""
-        content = message.content or ""
-        if "</think>" in content:
-            reasoning, content = content.rsplit("</think>", 1)
-        return {"answer": read_answer(content), "raw": content.strip(), "reasoning": reasoning.strip(),
-                "latency": latency, "output_tokens": response.usage.completion_tokens if response.usage else None}
+
+
+@dataclass(frozen=True)
+class ModelAnswer:
+    """One answer of a fine-tuned model, split into its reasoning and its JSON answer."""
+
+    fields: Mapping[str, Any]
+    text: str
+    reasoning: str
+    latency_seconds: float
+    output_tokens: int | None
+
+    @classmethod
+    def from_completion(cls, content: str, separate_reasoning: str, latency_seconds: float, output_tokens: int | None) -> "ModelAnswer":
+        """Build an answer from a chat completion, whether the server returns the reasoning inline or separately."""
+        reasoning, text = separate_reasoning, content
+        if END_OF_REASONING in content:
+            reasoning, text = content.rsplit(END_OF_REASONING, 1)
+        return cls(fields=parse_json_object(text), text=text.strip(), reasoning=reasoning.strip(),
+                   latency_seconds=latency_seconds, output_tokens=output_tokens)
+
+
+@dataclass(frozen=True)
+class FineTunedModel:
+    """A fine-tuned model that is asked exactly the way it was trained: same system prompt, temperature 0, same thinking mode."""
+
+    spec: ModelSpec
+    endpoint: Endpoint
+    client: OpenAI = field(repr=False, compare=False)
+
+    @classmethod
+    def from_env(cls, spec: ModelSpec) -> "FineTunedModel":
+        """Connect to the endpoint configured in the environment for this model."""
+        endpoint = Endpoint.from_env(spec.env_prefix)
+        return cls(spec=spec, endpoint=endpoint, client=OpenAI(base_url=endpoint.base_url, api_key=endpoint.api_key))
+
+    def ask(self, text: str) -> ModelAnswer:
+        """Send one input and return the model's answer."""
+        started = time.time()
+        completion = self.client.chat.completions.create(
+            model=self.endpoint.served_model_name,
+            messages=[{"role": "system", "content": self.spec.system_prompt}, {"role": "user", "content": text}],
+            temperature=0,
+            extra_body={"chat_template_kwargs": {"enable_thinking": self.spec.reasons_before_answering}},
+        )
+        message = completion.choices[0].message
+        return ModelAnswer.from_completion(
+            content=message.content or "",
+            separate_reasoning=getattr(message, "reasoning_content", None) or "",
+            latency_seconds=time.time() - started,
+            output_tokens=completion.usage.completion_tokens if completion.usage else None,
+        )
+
+
+def parse_json_object(text: str) -> dict:
+    """Return the JSON object inside a text, or an empty dict when there is none."""
+    match = re.search(r"\{.*\}", text or "", flags=re.S)
+    try:
+        parsed = json.loads(match.group(0)) if match else {}
+    except json.JSONDecodeError:
+        parsed = {}
+    return parsed if isinstance(parsed, dict) else {}

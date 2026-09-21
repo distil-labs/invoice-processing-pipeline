@@ -4,8 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
-from app.jev import call_jev
-from app.models import SlmClient, system_prompt
+from app.jev import BooleanQuestion, ChoiceQuestion, JevClient, JevResponse
+from app.models import DECIDER, FineTunedModel
 from benchmarking import common
 
 MAX_LINES = 6
@@ -26,27 +26,32 @@ DEFAULT_BACKENDS = ["jev-single", "jev-checks", "jev-lines", "gemini-3.5-flash-l
 GROUPS = ["approve", "hold_no_po", "hold_quantity", "hold_price", "hold_total", "two_"]
 
 
-def jev_single(case: dict) -> dict:
+def jev_row(prediction: str, response: JevResponse) -> dict:
+    """One result row of a Jev setup."""
+    return {"prediction": prediction, "answers": dict(response.answers), "latency": response.latency_seconds, "cost": response.cost_usd}
+
+
+def jev_single(jev: JevClient, case: dict) -> dict:
     """One choice question carrying the full task description."""
-    result = call_jev(case["input"], {"decision": {"type": "choice", "instructions": system_prompt("decider"), "criteria": DECISIONS}})
-    return {"prediction": result["answers"]["decision"]["choice"], **result}
+    response = jev.evaluate(case["input"], {"decision": ChoiceQuestion(instructions=DECIDER.system_prompt, criteria=DECISIONS)})
+    return jev_row(response.choice("decision"), response)
 
 
-def jev_checks(case: dict) -> dict:
+def jev_checks(jev: JevClient, case: dict) -> dict:
     """One boolean per policy check, order applied in code."""
-    result = call_jev(case["input"], {name: {"type": "boolean", "instructions": text} for name, text in CHECKS.items()})
-    failed = [name for name in CHECKS if result["answers"][name]["probability"] >= 0.5]
-    return {"prediction": failed[0] if failed else "approve", **result}
+    response = jev.evaluate(case["input"], {name: BooleanQuestion(instructions=text) for name, text in CHECKS.items()})
+    failed = [name for name in CHECKS if response.is_true(name)]
+    return jev_row(failed[0] if failed else "approve", response)
 
 
-def jev_lines(case: dict) -> dict:
+def jev_lines(jev: JevClient, case: dict) -> dict:
     """One boolean per invoice line for quantity and price, plus PO number and total, order applied in code."""
-    questions = {"hold_no_po": {"type": "boolean", "instructions": CHECKS["hold_no_po"]}, "hold_total": {"type": "boolean", "instructions": CHECKS["hold_total"]}}
+    questions = {"hold_no_po": BooleanQuestion(CHECKS["hold_no_po"]), "hold_total": BooleanQuestion(CHECKS["hold_total"])}
     for n in range(1, MAX_LINES + 1):
-        questions[f"quantity_{n}"] = {"type": "boolean", "instructions": f"Invoice line {n} exists and bills a quantity greater than the quantity received for that item."}
-        questions[f"price_{n}"] = {"type": "boolean", "instructions": f"Invoice line {n} exists and its unit price is more than 2% above the purchase order unit price for that item."}
-    result = call_jev(case["input"], questions)
-    fired = {name for name, answer in result["answers"].items() if answer["probability"] >= 0.5}
+        questions[f"quantity_{n}"] = BooleanQuestion(f"Invoice line {n} exists and bills a quantity greater than the quantity received for that item.")
+        questions[f"price_{n}"] = BooleanQuestion(f"Invoice line {n} exists and its unit price is more than 2% above the purchase order unit price for that item.")
+    response = jev.evaluate(case["input"], questions)
+    fired = {name for name in questions if response.is_true(name)}
     if "hold_no_po" in fired:
         prediction = "hold_no_po"
     elif any(name.startswith("quantity_") for name in fired):
@@ -55,18 +60,22 @@ def jev_lines(case: dict) -> dict:
         prediction = "hold_price"
     else:
         prediction = "hold_total" if "hold_total" in fired else "approve"
-    return {"prediction": prediction, **result}
+    return jev_row(prediction, response)
+
+
+JEV_SETUPS = {"jev-single": jev_single, "jev-checks": jev_checks, "jev-lines": jev_lines}
 
 
 def run_backend(backend: str, cases: list[dict], out_dir: Path) -> dict:
     """Run one backend over all cases, save raw rows, return a summary."""
     if backend == "slm":
-        client = SlmClient("decider")
-        fn = lambda case: {**(r := common.call_slm(client, case["input"])), "prediction": r["answer"].get("decision")}
-    elif backend in ("jev-single", "jev-checks", "jev-lines"):
-        fn = {"jev-single": jev_single, "jev-checks": jev_checks, "jev-lines": jev_lines}[backend]
+        model = FineTunedModel.from_env(DECIDER)
+        fn = lambda case: {**(r := common.call_slm(model, case["input"])), "prediction": r["answer"].get("decision")}
+    elif backend in JEV_SETUPS:
+        jev, setup = JevClient.from_env(), JEV_SETUPS[backend]
+        fn = lambda case: setup(jev, case)
     else:
-        system = system_prompt("decider")
+        system = DECIDER.system_prompt
         fn = lambda case: {**(r := common.call_hosted(backend, system, case["input"])), "prediction": r["answer"].get("decision")}
     outputs = common.run_parallel(fn, cases)
     rows = [{"id": c["id"], "kind": c["kind"], "gold": c["decision"], "correct": o["prediction"] == c["decision"], **o} for c, o in zip(cases, outputs)]

@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from app.models import SlmClient, system_prompt
+from app.models import GROUNDED, FineTunedModel
 from benchmarking import common
 from benchmarking.bench_decider import GROUPS
 
@@ -14,10 +14,10 @@ DEFAULT_BACKENDS = ["gemini-3.5-flash-lite", "gpt-5.6-luna", "gpt-5.6-luna-high"
 def run_backend(backend: str, cases: list[dict], out_dir: Path) -> dict:
     """Run one backend over all cases, save raw rows, return a summary."""
     if backend == "slm":
-        client = SlmClient("grounded")
-        fn = lambda case: common.call_slm(client, case["input"])
+        model = FineTunedModel.from_env(GROUNDED)
+        fn = lambda case: common.call_slm(model, case["input"])
     else:
-        system = system_prompt("grounded")
+        system = GROUNDED.system_prompt
         fn = lambda case: common.call_hosted(backend, system, case["input"])
     outputs = common.run_parallel(fn, cases)
     rows = [{"id": c["id"], "kind": c["kind"], "checks": common.score_answer(o["answer"], common.grounded_answer(c), common.GROUNDED_FIELDS), **o} for c, o in zip(cases, outputs)]

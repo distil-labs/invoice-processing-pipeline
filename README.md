@@ -221,7 +221,7 @@ One request, one choice question, the five label definitions as criteria:
                          "criteria": {"invoice": "...", "receipt": "...", "payment_reminder": "...", "vendor_other": "...", "spam": "..."}}}}
 ```
 
-It answers with the chosen label, a probability per label and a confidence. See [`app/jev.py`](app/jev.py).
+It answers with the chosen label, a probability per label and a confidence. See `JevTriager` in [`app/triage.py`](app/triage.py) and the client in [`app/jev.py`](app/jev.py).
 
 ### The policy at step 2
 
@@ -382,7 +382,7 @@ How we kept the comparison fair:
 | Path | What it is |
 |---|---|
 | `run_pipeline.py` | Runs the pipeline over an inbox file and scores it when the file carries labels |
-| `app/` | The pipeline: `models.py` (the fine-tuned models behind OpenAI-compatible endpoints, prompts loaded from `training/`), `jev.py` (Jev through the Vercel AI Gateway), `pipeline.py` (the two steps) |
+| `app/` | The pipeline as small immutable classes: `models.py` (a fine-tuned model behind an OpenAI-compatible endpoint, asked the way it was trained; prompts come from `training/`), `jev.py` (Jev through the Vercel AI Gateway), `triage.py` (step 1 with Jev or the fine-tuned model), `erp.py` (the ERP stand-in), `decision.py` (step 2), `pipeline.py` (both steps) |
 | `data/` | Example inbox (200 messages), the 100 invoice cases with their expected answers, and `erp.json`, the stand-in for the ERP |
 | `training/` | For each model: job description, config, seed and test data, and a README on training it with distil labs |
 | `benchmarking/` | The benchmark scripts and the raw responses behind every table |

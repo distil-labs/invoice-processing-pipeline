@@ -7,8 +7,8 @@ import statistics
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from app.jev import post_with_retry
-from app.models import SlmClient
+from app.models import FineTunedModel
+from app.retry import post_with_retry
 
 REPO_DIR = Path(__file__).parent.parent
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -60,10 +60,10 @@ def call_hosted(backend: str, system: str, user: str) -> dict:
     }
 
 
-def call_slm(client: SlmClient, user: str) -> dict:
+def call_slm(model: FineTunedModel, user: str) -> dict:
     """Send one input to a fine-tuned model in the same result shape as call_hosted."""
-    result = client.ask(user)
-    return {"answer": result["answer"], "latency": result["latency"], "cost": 0.0, "reasoning_tokens": len(result["reasoning"]) // 3, "provider": "own endpoint"}
+    answer = model.ask(user)
+    return {"answer": dict(answer.fields), "latency": answer.latency_seconds, "cost": 0.0, "reasoning_tokens": len(answer.reasoning) // 3, "provider": "own endpoint"}
 
 
 def run_parallel(fn, rows: list[dict]) -> list[dict]:

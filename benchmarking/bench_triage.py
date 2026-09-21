@@ -4,8 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
-from app.jev import triage_with_jev
-from app.models import SlmClient, system_prompt, triage_labels
+from app.models import TRIAGE, FineTunedModel
+from app.triage import JevTriager, label_definitions
 from benchmarking import common
 
 DEFAULT_BACKENDS = ["jev", "gemini-3.5-flash-lite", "gpt-5.6-luna", "gpt-5.6-luna-high", "glm-5.3-high"]
@@ -14,18 +14,19 @@ DEFAULT_BACKENDS = ["jev", "gemini-3.5-flash-lite", "gpt-5.6-luna", "gpt-5.6-lun
 def run_backend(backend: str, rows: list[dict], out_dir: Path) -> dict:
     """Run one backend over the inbox, save raw rows, return a summary."""
     if backend == "jev":
-        fn = lambda row: {**(r := triage_with_jev(row["input"])), "prediction": r["label"]}
+        triager = JevTriager.from_env()
+        fn = lambda row: {"prediction": (r := triager.triage(row["input"])).label, "confidence": r.confidence, "latency": r.latency_seconds, "cost": r.cost_usd}
     elif backend == "slm":
-        client = SlmClient("triage")
-        fn = lambda row: {**(r := common.call_slm(client, row["input"])), "prediction": r["answer"].get("label")}
+        model = FineTunedModel.from_env(TRIAGE)
+        fn = lambda row: {**(r := common.call_slm(model, row["input"])), "prediction": r["answer"].get("label")}
     else:
-        system = system_prompt("triage")
+        system = TRIAGE.system_prompt
         fn = lambda row: {**(r := common.call_hosted(backend, system, row["input"])), "prediction": r["answer"].get("label")}
     outputs = common.run_parallel(fn, rows)
     scored = [{"id": r["id"], "gold": r["label"], "hard": r["hard"], "correct": o["prediction"] == r["label"], **o} for r, o in zip(rows, outputs)]
     (out_dir / f"triage__{backend}.jsonl").write_text("\n".join(json.dumps(s) for s in scored) + "\n")
     summary = {"backend": backend, "correct": f"{sum(s['correct'] for s in scored)}/{len(scored)}"}
-    for label in triage_labels():
+    for label in label_definitions():
         hits = [s["correct"] for s in scored if s["gold"] == label]
         summary[label] = f"{sum(hits)}/{len(hits)}"
     hard = [s["correct"] for s in scored if s["hard"]]
