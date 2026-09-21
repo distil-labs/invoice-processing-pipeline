@@ -1,0 +1,50 @@
+{"id": "G01", "input": "Vendor: Amazon Web Services\nAmount: USD 18,422.10\nDepartment: Engineering\nDescription: EC2, RDS and S3 usage for the production environment, August.", "label": "5010", "kind": "plain"}
+{"id": "G02", "input": "Vendor: Datadog\nAmount: USD 21,600.00\nDepartment: Engineering\nDescription: Annual subscription: APM and infrastructure monitoring for the production clusters.", "label": "5010", "kind": "hard"}
+{"id": "G03", "input": "Vendor: Cloudflare\nAmount: USD 250.00\nDepartment: Engineering\nDescription: Monthly plan, CDN and WAF in front of app.northwind.com.", "label": "5010", "kind": "hard"}
+{"id": "G04", "input": "Vendor: PagerDuty\nAmount: USD 1,140.00\nDepartment: Engineering\nDescription: On-call alerting for production incidents, 20 users, monthly subscription.", "label": "5010", "kind": "hard"}
+{"id": "G05", "input": "Vendor: BrowserStack\nAmount: USD 399.00\nDepartment: Engineering\nDescription: Cross-browser testing subscription for the QA team.", "label": "6110", "kind": "hard"}
+{"id": "G06", "input": "Vendor: GitHub\nAmount: USD 1,170.00\nDepartment: Engineering\nDescription: Copilot Business seats for the engineering team.", "label": "6110", "kind": "plain"}
+{"id": "G07", "input": "Vendor: Linear\nAmount: USD 300.00\nDepartment: Product\nDescription: Issue tracking, 30 seats, monthly.", "label": "6110", "kind": "plain"}
+{"id": "G08", "input": "Vendor: Zendesk\nAmount: USD 1,610.00\nDepartment: Customer Support\nDescription: Zendesk Suite, 14 agent seats, monthly.", "label": "5030", "kind": "hard"}
+{"id": "G09", "input": "Vendor: Aircall\nAmount: USD 420.00\nDepartment: Customer Support\nDescription: Phone lines for the support team, 6 users.", "label": "5030", "kind": "hard"}
+{"id": "G10", "input": "Vendor: Aircall\nAmount: USD 700.00\nDepartment: Sales\nDescription: Phone lines for the sales development team, 10 users.", "label": "6110", "kind": "hard"}
+{"id": "G11", "input": "Vendor: Dell\nAmount: USD 5,550.00\nDepartment: IT\nDescription: 3 x Latitude 7450 laptops at USD 1,850.00 each for new hires in finance.", "label": "6120", "kind": "hard"}
+{"id": "G12", "input": "Vendor: Apple\nAmount: USD 3,999.00\nDepartment: Marketing\nDescription: 1 x Mac Studio for the video editor.", "label": "1510", "kind": "hard"}
+{"id": "G13", "input": "Vendor: Herman Miller\nAmount: USD 8,370.00\nDepartment: Operations\nDescription: 6 x Aeron chairs at USD 1,395.00 each for the new office wing.", "label": "6620", "kind": "hard"}
+{"id": "G14", "input": "Vendor: Steelcase\nAmount: USD 4,200.00\nDepartment: Operations\nDescription: 1 x boardroom table, delivered and assembled.", "label": "1510", "kind": "hard"}
+{"id": "G15", "input": "Vendor: Logitech\nAmount: USD 89.00\nDepartment: IT\nDescription: 1 x webcam for a remote employee.", "label": "6120", "kind": "plain"}
+{"id": "G16", "input": "Vendor: Nobu Palo Alto\nAmount: USD 612.00\nDepartment: Sales\nDescription: Dinner with two prospects from Halvorsen Freight during the SaaStr conference trip. 4 people.", "label": "6310", "kind": "hard"}
+{"id": "G17", "input": "Vendor: Torchy's Tacos\nAmount: USD 214.00\nDepartment: Engineering\nDescription: Team lunch for 8 engineers to celebrate the sprint release, here in Austin.", "label": "6320", "kind": "plain"}
+{"id": "G18", "input": "Vendor: Waffle House Tulsa\nAmount: USD 23.40\nDepartment: Customer Success\nDescription: Dinner, travelling alone for the customer onsite in Tulsa.", "label": "6240", "kind": "plain"}
+{"id": "G19", "input": "Vendor: Girl & the Goat Chicago\nAmount: USD 388.00\nDepartment: Engineering\nDescription: Dinner for our 4 engineers while attending KubeCon in Chicago. No external guests.", "label": "6240", "kind": "hard"}
+{"id": "G20", "input": "Vendor: Linux Foundation\nAmount: USD 5,196.00\nDepartment: Engineering\nDescription: KubeCon North America, 4 attendee passes.", "label": "6330", "kind": "plain"}
+{"id": "G21", "input": "Vendor: United Airlines\nAmount: USD 1,512.00\nDepartment: Engineering\nDescription: 4 economy tickets Austin to Chicago for KubeCon.", "label": "6210", "kind": "hard"}
+{"id": "G22", "input": "Vendor: Uber\nAmount: USD 47.80\nDepartment: Engineering\nDescription: Ride from O'Hare to the hotel, KubeCon trip.", "label": "6230", "kind": "plain"}
+{"id": "G23", "input": "Vendor: Delta Air Lines\nAmount: USD 438.00\nDepartment: People\nDescription: Round trip Atlanta to Austin for Maria S., onsite interview for the Staff Engineer role.", "label": "6710", "kind": "hard"}
+{"id": "G24", "input": "Vendor: Hotel Van Zandt\nAmount: USD 289.00\nDepartment: People\nDescription: 1 night for a candidate attending onsite interviews.", "label": "6710", "kind": "hard"}
+{"id": "G25", "input": "Vendor: Uchi Austin\nAmount: USD 176.00\nDepartment: Engineering\nDescription: Lunch with a Staff Engineer candidate and two of our engineers.", "label": "6710", "kind": "hard"}
+{"id": "G26", "input": "Vendor: LinkedIn\nAmount: USD 1,485.00\nDepartment: People\nDescription: 3 job slots for open engineering roles, 30 days.", "label": "6710", "kind": "hard"}
+{"id": "G27", "input": "Vendor: LinkedIn\nAmount: USD 6,000.00\nDepartment: Marketing\nDescription: Sponsored content campaign for the Q3 product launch.", "label": "6510", "kind": "plain"}
+{"id": "G28", "input": "Vendor: Hays Recruitment\nAmount: USD 27,000.00\nDepartment: Sales\nDescription: Placement fee for the Senior Account Executive hire, invoiced for services rendered.", "label": "6710", "kind": "hard"}
+{"id": "G29", "input": "Vendor: Amazon Web Services\nAmount: USD 1,800.00\nDepartment: Engineering\nDescription: re:Invent bootcamp: 2-day hands-on workshop including the Solutions Architect certification exam.", "label": "6720", "kind": "hard"}
+{"id": "G30", "input": "Vendor: Amazon Web Services\nAmount: USD 2,099.00\nDepartment: Engineering\nDescription: re:Invent full conference pass for one engineer.", "label": "6330", "kind": "plain"}
+{"id": "G31", "input": "Vendor: O'Reilly Media\nAmount: USD 4,990.00\nDepartment: Engineering\nDescription: Online learning platform, team plan, annual subscription.", "label": "6720", "kind": "hard"}
+{"id": "G32", "input": "Vendor: Coursera\nAmount: USD 392.00\nDepartment: Data\nDescription: Machine learning specialization for a data analyst.", "label": "6720", "kind": "plain"}
+{"id": "G33", "input": "Vendor: Tomasz Wrobel\nAmount: USD 5,270.00\nDepartment: Engineering\nDescription: Freelance React development, 62 hours in August.", "label": "6430", "kind": "plain"}
+{"id": "G34", "input": "Vendor: Baker & Finch LLP\nAmount: USD 2,750.00\nDepartment: Operations\nDescription: Review of our independent contractor agreement template, 5 hours.", "label": "6410", "kind": "hard"}
+{"id": "G35", "input": "Vendor: Pixel & Pine Studio\nAmount: USD 3,400.00\nDepartment: Marketing\nDescription: Design of 3 customer case study PDFs and matching social graphics, 34 hours.", "label": "6520", "kind": "hard"}
+{"id": "G36", "input": "Vendor: Grant Ridley CPAs\nAmount: USD 12,500.00\nDepartment: Finance\nDescription: R&D tax credit study for fiscal 2025.", "label": "6420", "kind": "plain"}
+{"id": "G37", "input": "Vendor: Data Eng Weekly\nAmount: USD 3,200.00\nDepartment: Marketing\nDescription: Sponsorship of 4 newsletter issues in October.", "label": "6510", "kind": "hard"}
+{"id": "G38", "input": "Vendor: PyData Berlin\nAmount: USD 7,500.00\nDepartment: Marketing\nDescription: Silver sponsorship package including a booth.", "label": "6330", "kind": "hard"}
+{"id": "G39", "input": "Vendor: Sugarwish\nAmount: USD 1,890.00\nDepartment: People\nDescription: Holiday gift boxes for all 42 employees.", "label": "6320", "kind": "plain"}
+{"id": "G40", "input": "Vendor: Harry & David\nAmount: USD 85.00\nDepartment: Customer Success\nDescription: Gift basket for our champion at Meridian Logistics after the renewal.", "label": "6310", "kind": "plain"}
+{"id": "G41", "input": "Vendor: Stripe\nAmount: USD 9,214.37\nDepartment: Finance\nDescription: Processing fees on customer card payments, August.", "label": "5020", "kind": "plain"}
+{"id": "G42", "input": "Vendor: JPMorgan Chase\nAmount: USD 135.00\nDepartment: Finance\nDescription: 3 outgoing international wire fees.", "label": "6810", "kind": "plain"}
+{"id": "G43", "input": "Vendor: Stripe\nAmount: USD 412.90\nDepartment: Finance\nDescription: Currency conversion fees on EUR to USD settlement, August.", "label": "6810", "kind": "hard"}
+{"id": "G44", "input": "Vendor: American Express\nAmount: USD 695.00\nDepartment: Finance\nDescription: Annual membership fee for the corporate card.", "label": "6810", "kind": "plain"}
+{"id": "G45", "input": "Vendor: WeWork\nAmount: USD 7,800.00\nDepartment: Operations\nDescription: Monthly office membership, 12 dedicated desks.", "label": "6610", "kind": "plain"}
+{"id": "G46", "input": "Vendor: Comcast Business\nAmount: USD 249.00\nDepartment: Operations\nDescription: Office internet, September.", "label": "6610", "kind": "plain"}
+{"id": "G47", "input": "Vendor: Staples\nAmount: USD 162.35\nDepartment: Operations\nDescription: Printer paper, toner and whiteboard markers.", "label": "6620", "kind": "plain"}
+{"id": "G48", "input": "Vendor: Hiscox\nAmount: USD 8,400.00\nDepartment: Finance\nDescription: Cyber liability insurance, annual premium.", "label": "6910", "kind": "plain"}
+{"id": "G49", "input": "Vendor: Marriott Tulsa\nAmount: USD 398.00\nDepartment: Customer Success\nDescription: 2 nights for the customer onsite in Tulsa.", "label": "6220", "kind": "plain"}
+{"id": "G50", "input": "Vendor: Franklin Barbecue\nAmount: USD 640.00\nDepartment: Sales\nDescription: Lunch in Austin for the account team and three visitors from Meridian Logistics, 9 people.", "label": "6310", "kind": "hard"}

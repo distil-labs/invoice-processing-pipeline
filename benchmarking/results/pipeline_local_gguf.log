@@ -1,0 +1,6 @@
+
+step 1: slm | messages: 200 | sent to step 2: 100 | 717 s with 4 in flight
+step 1 labels correct: 200/200 | invoices missed: 0 | non-invoices sent to step 2: 0
+handled correctly end to end: 197/200
+invoices: right decision 99/100 | all six fields right 97/100
+median latency: step 1 0.35 s | step 2 27.96 s

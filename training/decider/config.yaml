@@ -1,0 +1,74 @@
+base:
+  task: question-answering
+  student_model_name: Qwen3.5-4B
+  teacher_model_name: zai.glm-5.3-high-thinking
+  enable_thinking: true
+  llm_num_parallel_requests: 16
+
+synthgen:
+  teacher_temperature: 0.6
+  generation_target: 4000
+  generation_in_single_call: 2
+  output_is_json: true
+  mutators:
+    - name: label
+      values:
+        - "cases whose correct decision is approve"
+        - "cases whose correct decision is approve"
+        - "cases whose correct decision is approve"
+        - "cases whose correct decision is approve"
+        - "cases whose correct decision is approve"
+        - "cases whose correct decision is hold_no_po"
+        - "cases whose correct decision is hold_no_po"
+        - "cases whose correct decision is hold_quantity"
+        - "cases whose correct decision is hold_quantity"
+        - "cases whose correct decision is hold_quantity"
+        - "cases whose correct decision is hold_price"
+        - "cases whose correct decision is hold_price"
+        - "cases whose correct decision is hold_price"
+        - "cases whose correct decision is hold_price"
+        - "cases whose correct decision is hold_price"
+        - "cases whose correct decision is hold_total"
+        - "cases whose correct decision is hold_total"
+        - "cases whose correct decision is hold_total"
+        - "cases whose correct decision is hold_total"
+        - "cases whose correct decision is hold_total"
+    - name: difficulty
+      values:
+        - "as clean as the label allows: apart from what the label requires, every quantity, price and the total match exactly"
+        - "near misses on price that still pass: one unit price 1.0 to 1.9 percent above the PO price and another price below the PO price; if the label is hold_price, the failing price is only 2.1 to 3 percent above the PO price"
+        - "near misses on price that still pass: one unit price 1.0 to 1.9 percent above the PO price and another price below the PO price; if the label is hold_price, the failing price is only 2.1 to 3 percent above the PO price"
+        - "partial deliveries: one or two items received short; unless the label is hold_quantity the invoice bills only the received quantity, and if the label is hold_quantity the excess is only 1 or 2 units"
+        - "cases where a later check would fail too, so the earliest failing check in the policy order decides the label"
+        - "close totals: if the label is hold_total the stated total is off by a transposed digit or by less than 30; otherwise the total is exactly right even though the line totals have awkward cents"
+    - name: invoice_style
+      values:
+        - "written with the invoice as a terse ERP export: upper-case abbreviations and pipe-separated columns"
+        - "written with the invoice as a polite email with one bullet per line item"
+        - "written with the invoice as a forwarded thread: a Northwind employee forwards the vendor's message with a short note"
+        - "written with the invoice as numbered sentences, one per line item"
+        - "written with the invoice as a plain-text table with aligned columns and a totals block"
+    - name: line_layout
+      values:
+        - "built with 3 invoice lines in the same order as the PO"
+        - "built with 3 invoice lines in a different order than the PO"
+        - "built with 4 invoice lines in a different order than the PO"
+        - "built with 4 invoice lines in the same order as the PO"
+        - "built with 5 invoice lines in a different order than the PO"
+        - "built with 6 invoice lines in a different order than the PO"
+        - "built with 6 invoice lines in the same order as the PO"
+        - "built with 5 invoice lines in a different order than the PO"
+    - name: item_naming
+      values:
+        - "written so the invoice uses upper-case vendor abbreviations for the item names, not the PO wording"
+        - "written so the invoice rewords the item names, not the PO wording"
+        - "written so the invoice mixes identical, abbreviated and reworded item names"
+    - name: extras
+      values:
+        - "without freight and without any amount that is not part of the invoice"
+        - "without freight and without any amount that is not part of the invoice"
+        - "without freight and without any amount that is not part of the invoice"
+        - "with a freight or shipping charge on the invoice; choose whether the PO allows freight so that the label stays correct"
+        - "with a previous account balance mentioned in the message, which is not part of this invoice"
+        - "with a payment received for an older invoice mentioned in the message, which is not part of this invoice"
+        - "with a quote for a future order mentioned in the message, which is not part of this invoice"

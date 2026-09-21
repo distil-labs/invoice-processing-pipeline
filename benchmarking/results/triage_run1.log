@@ -1,0 +1,13 @@
+done: {'backend': 'jev', 'correct': '200/200', 'invoice': '100/100', 'receipt': '25/25', 'payment_reminder': '25/25', 'vendor_other': '25/25', 'spam': '25/25', 'hard': '49/49', 'invoices_missed / non-invoices_sent_to_step_2': '0 / 0', 'latency_s': 0.36, 'usd_per_1000': 0.029}
+done: {'backend': 'gemini-3.5-flash-lite', 'correct': '197/200', 'invoice': '99/100', 'receipt': '23/25', 'payment_reminder': '25/25', 'vendor_other': '25/25', 'spam': '25/25', 'hard': '47/49', 'invoices_missed / non-invoices_sent_to_step_2': '1 / 0', 'latency_s': 0.6, 'usd_per_1000': 0.138}
+done: {'backend': 'gpt-5.6-luna', 'correct': '200/200', 'invoice': '100/100', 'receipt': '25/25', 'payment_reminder': '25/25', 'vendor_other': '25/25', 'spam': '25/25', 'hard': '49/49', 'invoices_missed / non-invoices_sent_to_step_2': '0 / 0', 'latency_s': 0.91, 'usd_per_1000': 0.09}
+done: {'backend': 'gpt-5.6-luna-high', 'correct': '200/200', 'invoice': '100/100', 'receipt': '25/25', 'payment_reminder': '25/25', 'vendor_other': '25/25', 'spam': '25/25', 'hard': '49/49', 'invoices_missed / non-invoices_sent_to_step_2': '0 / 0', 'latency_s': 0.92, 'usd_per_1000': 0.093}
+done: {'backend': 'glm-5.3-high', 'correct': '200/200', 'invoice': '100/100', 'receipt': '25/25', 'payment_reminder': '25/25', 'vendor_other': '25/25', 'spam': '25/25', 'hard': '49/49', 'invoices_missed / non-invoices_sent_to_step_2': '0 / 0', 'latency_s': 0.7, 'usd_per_1000': 0.448}
+done: {'backend': 'qwen3.5-9b-base', 'correct': '198/200', 'invoice': '99/100', 'receipt': '25/25', 'payment_reminder': '25/25', 'vendor_other': '25/25', 'spam': '24/25', 'hard': '49/49', 'invoices_missed / non-invoices_sent_to_step_2': '1 / 0', 'latency_s': 1.04, 'usd_per_1000': 0.113}
+backend | correct | invoice | receipt | payment_reminder | vendor_other | spam | hard | invoices_missed / non-invoices_sent_to_step_2 | latency_s | usd_per_1000
+jev | 200/200 | 100/100 | 25/25 | 25/25 | 25/25 | 25/25 | 49/49 | 0 / 0 | 0.36 | 0.029
+gemini-3.5-flash-lite | 197/200 | 99/100 | 23/25 | 25/25 | 25/25 | 25/25 | 47/49 | 1 / 0 | 0.6 | 0.138
+gpt-5.6-luna | 200/200 | 100/100 | 25/25 | 25/25 | 25/25 | 25/25 | 49/49 | 0 / 0 | 0.91 | 0.09
+gpt-5.6-luna-high | 200/200 | 100/100 | 25/25 | 25/25 | 25/25 | 25/25 | 49/49 | 0 / 0 | 0.92 | 0.093
+glm-5.3-high | 200/200 | 100/100 | 25/25 | 25/25 | 25/25 | 25/25 | 49/49 | 0 / 0 | 0.7 | 0.448
+qwen3.5-9b-base | 198/200 | 99/100 | 25/25 | 25/25 | 25/25 | 24/25 | 49/49 | 1 / 0 | 1.04 | 0.113

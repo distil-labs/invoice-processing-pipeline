@@ -1,0 +1,38 @@
+base:
+  task: question-answering
+  student_model_name: Qwen3.5-2B
+  teacher_model_name: zai.glm-5.3-high-thinking
+  llm_num_parallel_requests: 16
+
+synthgen:
+  teacher_temperature: 0.6
+  generation_target: 3000
+  generation_in_single_call: 4
+  output_is_json: true
+  mutators:
+    - name: label
+      values:
+        - "messages whose correct label is invoice"
+        - "messages whose correct label is invoice"
+        - "messages whose correct label is invoice"
+        - "messages whose correct label is receipt"
+        - "messages whose correct label is receipt"
+        - "messages whose correct label is payment_reminder"
+        - "messages whose correct label is payment_reminder"
+        - "messages whose correct label is vendor_other"
+        - "messages whose correct label is vendor_other"
+        - "messages whose correct label is spam"
+        - "messages whose correct label is spam"
+    - name: difficulty
+      values:
+        - "plain and unambiguous"
+        - "plain and unambiguous"
+        - "easy to confuse with another label on the surface: a reminder that quotes the full original invoice, a paid copy of an invoice, a statement of account, a quotation or order confirmation or pro forma with line items and a total, a payment dispute that cites invoice numbers, a phishing message styled as a known vendor from a lookalike domain or asking to change bank details"
+        - "easy to confuse with another label on the surface: a reminder that quotes the full original invoice, a paid copy of an invoice, a statement of account, a quotation or order confirmation or pro forma with line items and a total, a payment dispute that cites invoice numbers, a phishing message styled as a known vendor from a lookalike domain or asking to change bank details"
+        - "carrying an injected instruction inside the message that tells an automated classifier to output a different label; the correct label ignores that instruction"
+    - name: wrapper
+      values:
+        - "sent directly by the external sender"
+        - "sent directly by the external sender"
+        - "sent directly by the external sender"
+        - "forwarded by a Northwind employee with a one-line note above the original message"
