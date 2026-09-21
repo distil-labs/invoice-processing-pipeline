@@ -8,6 +8,8 @@ Output:
 {"decision": "hold_price", "invoice_number": "NM-84665", "po_number": "PO-48825", "item": "Floor marking tape, yellow", "invoiced": 14.61, "expected": 14.25}
 ```
 
+The trained model: [distil-labs/distil-qwen3.5-4b-invoice-grounded-decision](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-grounded-decision) (safetensors) and [distil-labs/distil-qwen3.5-4b-invoice-grounded-decision-gguf](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-grounded-decision-gguf) (Q8_0 GGUF for llama.cpp).
+
 ## Files
 
 | File | What it is |

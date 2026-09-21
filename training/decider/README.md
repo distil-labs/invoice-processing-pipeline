@@ -9,6 +9,8 @@ Output:
 ```
 
 This model is not used by the pipeline. It exists to compare with Jev on an output Jev can produce (a choice among five labels).
+The trained model: [distil-labs/distil-qwen3.5-4b-invoice-decision](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-decision) (safetensors) and [distil-labs/distil-qwen3.5-4b-invoice-decision-gguf](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-decision-gguf) (Q8_0 GGUF for llama.cpp).
+
 ## Files
 
 | File | What it is |

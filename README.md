@@ -1,4 +1,4 @@
-<!-- DRAFT for review (GATE 3). Before publication: banner image, Hugging Face links and model names, LICENSE, confirm the decode benchmark details, check TypeSafe's terms on publishing benchmark results. Remove this comment. -->
+<!-- DRAFT for review (GATE 3). Before publication: banner image, LICENSE, make the Hugging Face repos public, confirm the decode benchmark details, check TypeSafe's terms on publishing benchmark results. Remove this comment. -->
 
 # Jev or a fine-tuned small model? An accounts payable pipeline that uses both
 
@@ -112,21 +112,29 @@ pip install -r requirements.txt
 
 ### Download the models
 
-<!-- TODO at publication: Hugging Face repos -->
+Each model is on Hugging Face in two formats: safetensors (for vLLM or Transformers) and Q8_0 GGUF (for llama.cpp).
 
-| Model | Step | Size (Q8_0 GGUF) |
-|---|---|---|
-| Triage, fine-tuned Qwen3.5-0.8B | 1 | 0.8 GB |
-| Grounded decision, fine-tuned Qwen3.5-4B | 2 | 4.5 GB |
-| Decision only, fine-tuned Qwen3.5-4B (benchmark only) | 2a | 4.5 GB |
+| Model | Step | Safetensors | GGUF (Q8_0) |
+|---|---|---|---|
+| Triage, fine-tuned Qwen3.5-0.8B | 1 | [distil-qwen3.5-0.8b-invoice-triage](https://huggingface.co/distil-labs/distil-qwen3.5-0.8b-invoice-triage) | [distil-qwen3.5-0.8b-invoice-triage-gguf](https://huggingface.co/distil-labs/distil-qwen3.5-0.8b-invoice-triage-gguf), 0.8 GB |
+| Grounded decision, fine-tuned Qwen3.5-4B | 2 (2b) | [distil-qwen3.5-4b-invoice-grounded-decision](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-grounded-decision) | [distil-qwen3.5-4b-invoice-grounded-decision-gguf](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-grounded-decision-gguf), 4.5 GB |
+| Decision only, fine-tuned Qwen3.5-4B (benchmark only) | 2a | [distil-qwen3.5-4b-invoice-decision](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-decision) | [distil-qwen3.5-4b-invoice-decision-gguf](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-decision-gguf), 4.5 GB |
+
+The pipeline needs the first two:
+
+```bash
+pip install -U huggingface_hub
+hf download distil-labs/distil-qwen3.5-0.8b-invoice-triage-gguf distil-qwen3.5-0.8b-invoice-triage-q8_0.gguf --local-dir models
+hf download distil-labs/distil-qwen3.5-4b-invoice-grounded-decision-gguf distil-qwen3.5-4b-invoice-grounded-decision-q8_0.gguf --local-dir models
+```
 
 ### Start the model servers
 
 One `llama-server` per model. `--jinja` is required: the models rely on their chat template, which carries the thinking switch.
 
 ```bash
-llama-server -m distil-jev-triage-qwen3.5-0.8b-q8_0.gguf            --port 8001 --jinja -c 8192  -np 4
-llama-server -m distil-jev-grounded-decision-qwen3.5-4b-q8_0.gguf   --port 8002 --jinja -c 16384 -np 4
+llama-server -m models/distil-qwen3.5-0.8b-invoice-triage-q8_0.gguf            --port 8001 --jinja -c 8192  -np 4
+llama-server -m models/distil-qwen3.5-4b-invoice-grounded-decision-q8_0.gguf   --port 8002 --jinja -c 16384 -np 4
 ```
 
 ### Point the pipeline at them
@@ -140,7 +148,7 @@ export GROUNDED_BASE_URL=http://127.0.0.1:8002/v1
 export GROUNDED_API_KEY=EMPTY
 ```
 
-The same variables work for any other OpenAI-compatible server: vLLM (`vllm serve <model dir> --port 8002`) or a distil labs deployment (`distil deployment create-from-slm <model id>`, then `distil deployment endpoint <deployment id>` for the URL and key; append `/v1` to the URL).
+The same variables work for any other OpenAI-compatible server: vLLM (`vllm serve distil-labs/distil-qwen3.5-4b-invoice-grounded-decision --port 8002`) or a distil labs deployment (`distil deployment create-from-slm <model id>`, then `distil deployment endpoint <deployment id>` for the URL and key; append `/v1` to the URL).
 
 ### Run it
 
@@ -384,7 +392,7 @@ How we kept the comparison fair:
 
 **What does it get wrong?** Additions over large line totals. All five errors of the two 4B models across 200 test answers are slips in the running sum. Route `hold_total` decisions and invoices above a threshold to a person, or recompute the sum in code from the model's own reasoning lines.
 
-**What hardware do I need?** The two pipeline models together are about 5.3 GB as Q8_0 GGUF files. We ran the whole pipeline under llama.cpp on an Apple M4 Pro laptop with 24 GB of memory, with the same 197 of 200 as on a GPU server.
+**What hardware do I need?** The two pipeline models together are about 5.3 GB as Q8_0 GGUF files ([triage](https://huggingface.co/distil-labs/distil-qwen3.5-0.8b-invoice-triage-gguf), [grounded decision](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-grounded-decision-gguf)). We ran the whole pipeline under llama.cpp on an Apple M4 Pro laptop with 24 GB of memory, with the same 197 of 200 as on a GPU server.
 
 **Can you train a model for my task?** Yes. Start from the folders in `training/` or visit [distillabs.ai](https://www.distillabs.ai).
 

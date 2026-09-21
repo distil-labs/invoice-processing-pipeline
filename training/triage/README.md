@@ -8,6 +8,8 @@ Output:
 {"label": "payment_reminder"}
 ```
 
+The trained model: [distil-labs/distil-qwen3.5-0.8b-invoice-triage](https://huggingface.co/distil-labs/distil-qwen3.5-0.8b-invoice-triage) (safetensors) and [distil-labs/distil-qwen3.5-0.8b-invoice-triage-gguf](https://huggingface.co/distil-labs/distil-qwen3.5-0.8b-invoice-triage-gguf) (Q8_0 GGUF for llama.cpp).
+
 ## Files
 
 | File | What it is |
