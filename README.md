@@ -1,4 +1,4 @@
-<!-- DRAFT for review (GATE 3). Before publication: banner image, LICENSE, make the Hugging Face repos public, check TypeSafe's terms on publishing benchmark results. Remove this comment. -->
+<!-- DRAFT for review (GATE 3). Before publication: banner image, LICENSE, check TypeSafe's terms on publishing benchmark results. Remove this comment. -->
 
 # Jev or a fine-tuned small model? An accounts payable pipeline that uses both
 
