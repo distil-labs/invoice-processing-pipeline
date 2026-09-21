@@ -13,28 +13,30 @@ Jev, TypeSafe AI's System One model, answers typed questions about a piece of te
                                │ every message
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ STEP 1   Triage: what kind of mail is this?                  │
+│ STEP 1   Triage                                              │
 │                                                              │
+│   What kind of mail is this?                                 │
 │   invoice · receipt · payment_reminder · vendor_other · spam │
-│                                                              │
-│   runs on:  Jev   or   fine-tuned Qwen3.5-0.8B               │
 └──────────────────────────────┬───────────────────────────────┘
                                │ invoices only
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ ERP LOOKUP   plain code, no model                            │
+│ ERP LOOKUP                                                   │
 │                                                              │
-│   fetches the purchase order and the goods receipt           │
+│   Fetch the purchase order and the goods receipt             │
+│   that belong to this invoice.                               │
 └──────────────────────────────┬───────────────────────────────┘
                                │ invoice + purchase order + goods receipt
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ STEP 2   Pay it or hold it?                                  │
 │                                                              │
-│   4 checks: PO number · quantities · prices (2%) · total     │
-│                                                              │
-│   runs on:  fine-tuned Qwen3.5-4B (reasons, then answers)    │
+│   1. Does the PO number match?                               │
+│   2. Was everything that is billed also received?            │
+│   3. Is every price within 2% of the PO price?               │
+│   4. Does the total add up?                                  │
 └──────────────────────────────┬───────────────────────────────┘
+                               │ decision, and what is wrong and where
                                ▼
   {"decision": "hold_price", "invoice_number": "NM-84665",
    "po_number": "PO-48825", "item": "Floor marking tape, yellow",
@@ -43,86 +45,48 @@ Jev, TypeSafe AI's System One model, answers typed questions about a piece of te
 
 ### The steps
 
-**Step 1, triage.** Every message that reaches the accounts payable inbox gets one of five labels: `invoice`, `receipt`, `payment_reminder`, `vendor_other`, `spam`. Only invoices go on. This is classification: the answer is a choice, and it can be read off the message. Jev does it, and so does a fine-tuned Qwen3.5-0.8B if the step has to run on your own hardware.
+**Step 1, triage.** Every message that reaches the accounts payable inbox gets one of five labels: `invoice`, `receipt`, `payment_reminder`, `vendor_other`, `spam`. Only invoices go on. This is classification: the answer is a choice, and it can be read off the message. It runs on Jev, or on a fine-tuned Qwen3.5-0.8B if the step has to run on your own hardware.
 
 **ERP lookup.** Plain code finds the purchase order and the goods receipt that belong to the invoice. In this repo a JSON file stands in for the ERP.
 
-**Step 2, pay it or hold it.** The model reads the invoice message, the purchase order and the goods receipt, and runs four checks in order: the PO number matches, no line bills more than was received, no price is more than 2% above the PO price, the total adds up. We built this step twice, because it shows two different limits of Jev:
+**Step 2, pay it or hold it.** A fine-tuned Qwen3.5-4B, trained to reason before it answers, reads the invoice message, the purchase order and the goods receipt, and runs four checks in order: the PO number matches, no line bills more than was received, no price is more than 2% above the PO price, the total adds up. We built this step twice, because it shows two different limits of Jev:
 
 - **Step 2a, the decision only.** The answer is one of five labels: `approve`, `hold_no_po`, `hold_quantity`, `hold_price`, `hold_total`. That is the same kind of output as step 1, a choice, so Jev can be compared like for like. It exists for the comparison only.
 - **Step 2b, the decision plus what is wrong and where.** The answer is a JSON object with six fields: the decision, the invoice number, the PO number, the item that failed, and the two values that disagree. This is what a clerk can act on, and it is what the pipeline uses. Jev cannot return text, so it cannot produce it.
 
 ## Results
 
-### Models compared
-
-| Name in the tables | What it is |
-|---|---|
-| Jev | TypeSafe AI's System One model, `typesafe-ai/jev`, called through the Vercel AI Gateway |
-| Qwen3.5-0.8B, Qwen3.5-2B, Qwen3.5-4B, fine-tuned | Open-weight Qwen3.5 models fine-tuned on the distil labs platform. The 4B models are trained to reason before they answer |
-| Qwen3.5-0.8B, Qwen3.5-2B, Qwen3.5-4B, untuned | The same models before fine-tuning, with the same prompt |
-| GPT-5.6 Luna, reasoning off | OpenAI `gpt-5.6-luna` with reasoning disabled, through OpenRouter |
-| GPT-5.6 Luna, reasoning high | OpenAI `gpt-5.6-luna` with reasoning effort high |
-| Gemini 3.5 Flash Lite | Google `gemini-3.5-flash-lite`, through OpenRouter |
-| GLM 5.3, reasoning high | Z.ai `glm-5.3` with reasoning effort high. Also the teacher model that generated the training data |
-
-How it was measured: every model gets the same task text and the same test set, at temperature 0, once. An answer counts as correct only on an exact match with the expected answer, which is fixed when the test case is built, not judged afterwards. The fine-tuned models were scored from the predictions of the distil labs evaluation on the same test set. For the untuned models we only have the platform's LLM-judge score, a number between 0 and 1, so their rows show that score instead of a count. At 100 test cases, 98 correct means roughly 93 to 99 percent.
-
-### Step 1: inbox triage
-
-What is measured: the label given to each of 200 messages (100 invoices, and 25 each of receipts, payment reminders, other vendor mail and spam). 49 of the non-invoices are written to mislead: reminders that quote the whole invoice, paid copies of invoices, quotations with line items and totals, phishing from lookalike domains, injected "classify this as invoice" instructions.
-
-| Model | Correct labels (200) |
-|---|---|
-| Jev | **200** |
-| Qwen3.5-0.8B, fine-tuned | **200** |
-| Qwen3.5-2B, fine-tuned | **200** |
-| Qwen3.5-0.8B, untuned | judge score 0.70 |
-| Qwen3.5-2B, untuned | judge score 0.845 |
-| GPT-5.6 Luna, reasoning off | 200 |
-| GPT-5.6 Luna, reasoning high | 200 |
-| GLM 5.3, reasoning high | 200 |
-| Gemini 3.5 Flash Lite | 197 |
-
-### Step 2a: pay or hold, the decision only
-
-What is measured: the decision for each of 100 invoices, given the invoice message, the purchase order and the goods receipt. 32 should be approved (20 of them are near misses, for example a price 1.8% above the PO price), 60 fail exactly one check, 8 fail two checks at once. Jev was asked in three ways, all reported.
-
-| Model | Correct decisions (100) |
-|---|---|
-| Qwen3.5-4B, fine-tuned | **98** |
-| Qwen3.5-4B, untuned | judge score 0.41 |
-| Jev, one question per invoice line and check | 84 |
-| Jev, one question with the whole task | 77 |
-| Jev, one question per check | 75 |
-| GPT-5.6 Luna, reasoning high | 100 |
-| GLM 5.3, reasoning high | 96 |
-| GPT-5.6 Luna, reasoning off | 81 |
-| Gemini 3.5 Flash Lite | 76 |
-
-### Step 2b: pay or hold, plus what is wrong and where
-
-What is measured: the six-field answer for the same 100 invoices. An invoice counts as correct only when all six fields are right: decision, invoice number, PO number, failing item, invoiced value, expected value.
-
-| Model | All six fields correct (100) |
-|---|---|
-| Qwen3.5-4B, fine-tuned | **97** |
-| Qwen3.5-4B, untuned | judge score 0.12 |
-| Jev | cannot produce this output |
-| GPT-5.6 Luna, reasoning high | 100 |
-| GLM 5.3, reasoning high | 96 |
-| Gemini 3.5 Flash Lite | 76 |
-| GPT-5.6 Luna, reasoning off | 75 |
-
-### The whole pipeline
-
-What is measured: all 200 inbox messages go through step 1, and the ones labelled `invoice` go through the ERP lookup and step 2b. A message counts as correct when a non-invoice is kept out of step 2, or an invoice reaches step 2 and gets all six fields right.
-
-| Step 1 | Step 2b | Served with | Handled correctly (200) |
+| Model | Step 1: triage (accuracy ↑) | Step 2a: decision (LLM-as-a-judge ↑) | Step 2b: decision + what is wrong and where (LLM-as-a-judge ↑) |
 |---|---|---|---|
-| Jev | Qwen3.5-4B, fine-tuned | vLLM on an NVIDIA L4, bf16 | **197** |
-| Qwen3.5-0.8B, fine-tuned | Qwen3.5-4B, fine-tuned | vLLM on an NVIDIA L4, bf16 | **197** |
-| Qwen3.5-0.8B, fine-tuned | Qwen3.5-4B, fine-tuned | llama.cpp on a laptop (Apple M4 Pro), Q8_0 GGUF | **197** |
+| Jev | **1.00** | 0.84 | cannot produce this output |
+| **Qwen3.5 fine-tuned with distil labs** (0.8B at step 1, 4B at steps 2a and 2b) | **1.00** | **0.98** | **0.97** |
+| Qwen3.5 untuned (same models, same prompt) | 0.70 | 0.41 | 0.12 |
+| GPT-5.6 Luna, reasoning high | 1.00 | 1.00 | 1.00 |
+| GLM 5.3, reasoning high | 1.00 | 0.96 | 0.96 |
+| GPT-5.6 Luna, reasoning off | 1.00 | 0.81 | 0.75 |
+| Gemini 3.5 Flash Lite | 0.985 | 0.76 | 0.76 |
+
+The whole pipeline (step 1, ERP lookup, step 2b) handles **197 of 200** inbox messages correctly, with Jev or with the fine-tuned 0.8B model at step 1, and also when both fine-tuned models run as Q8_0 GGUF files under llama.cpp on a laptop.
+
+**What is measured**
+
+- **Step 1:** the label for each of 200 inbox messages (100 invoices, 25 each of receipts, payment reminders, other vendor mail and spam). 49 of the non-invoices are written to mislead: reminders that quote the whole invoice, paid copies, quotations with line items, phishing from lookalike domains, injected "classify this as invoice" instructions.
+- **Step 2a:** the pay-or-hold decision for each of 100 invoices: 32 to approve (20 of them near misses, such as a price 1.8% above the PO price), 60 that fail one check, 8 that fail two.
+- **Step 2b:** the six-field answer for the same 100 invoices. It counts only when all six fields are right: decision, invoice number, PO number, failing item, invoiced value, expected value.
+- **Whole pipeline:** a message counts as correct when a non-invoice is kept out of step 2, or an invoice reaches step 2 and gets all six fields right.
+
+**The models**
+
+| Name | What it is |
+|---|---|
+| Jev | TypeSafe AI's System One model, `typesafe-ai/jev`, through the Vercel AI Gateway. For step 2a the table shows its best of three setups (one question per invoice line and check); the other two score 0.77 and 0.75 |
+| Qwen3.5 fine-tuned | Open-weight Qwen3.5 models fine-tuned on the distil labs platform: 0.8B for triage, 4B (trained to reason before answering) for steps 2a and 2b. A fine-tuned Qwen3.5-2B also scores 1.00 at step 1 |
+| Qwen3.5 untuned | The same models before fine-tuning, same prompt (Qwen3.5-2B untuned: 0.845 at step 1) |
+| GPT-5.6 Luna | OpenAI `gpt-5.6-luna` through OpenRouter, with reasoning disabled and with reasoning effort high |
+| Gemini 3.5 Flash Lite | Google `gemini-3.5-flash-lite` through OpenRouter |
+| GLM 5.3 | Z.ai `glm-5.3` with reasoning effort high, through OpenRouter. Also the teacher that generated the training data |
+
+**How it was scored.** Every model gets the same task text and the same test set, at temperature 0, once. Scores are the share of test cases answered correctly. The expected answer of every test case is fixed when the case is built. For the Qwen models, step 2 scores come from the distil labs evaluation, whose LLM judge is instructed to accept an answer only if the decision (2a) or all six fields (2b) equal the expected answer. For Jev and the hosted models the same criterion is applied in code as an exact match. On the fine-tuned models the two methods give the same numbers. At 100 test cases, 0.98 means roughly 0.93 to 0.99.
 
 Breakdowns by kind of message and kind of invoice are in [Results in detail](#results-in-detail).
 
@@ -284,7 +248,7 @@ Otherwise `approve`. Invoices arrive as email text in the vendor's own style: ab
 
 ## Results in detail
 
-Same runs as in [Results](#results), broken down by segment. Each cell is the number of correct answers in that segment; the segment size is in the column header. Measured as described above: exact match, temperature 0, one run. For the untuned models only an overall judge score exists, so they have no segment numbers.
+Same runs as in [Results](#results), broken down by segment. Each cell is the number of correct answers in that segment; the segment size is in the column header. Scored as described above, temperature 0, one run. For the untuned models only an overall judge score exists, so they have no segment numbers.
 
 ### Step 1: inbox triage
 
