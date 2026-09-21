@@ -60,24 +60,24 @@ Jev, TypeSafe AI's System One model, answers typed questions about a piece of te
 
 | Model | Step 1: triage (accuracy ↑) | Step 2a: decision (LLM-as-a-judge ↑) | Step 2b: decision + what is wrong and where (LLM-as-a-judge ↑) |
 |---|---|---|---|
-| Jev | **1.00** | 0.84 | cannot produce this output |
-| **Qwen3.5-0.8B, fine-tuned with distil labs** | **1.00** | - | - |
-| **Qwen3.5-4B, fine-tuned with distil labs** | - | **0.98** | **0.97** |
-| Qwen3.5-0.8B, untuned | 0.70 | - | - |
-| Qwen3.5-4B, untuned | - | 0.41 | 0.12 |
-| GPT-5.6 Luna, reasoning high | 1.00 | 1.00 | 1.00 |
-| GLM 5.3, reasoning high | 1.00 | 0.96 | 0.96 |
-| GPT-5.6 Luna, reasoning off | 1.00 | 0.81 | 0.75 |
-| Gemini 3.5 Flash Lite | 0.985 | 0.76 | 0.76 |
+| [Jev](https://docs.typesafe.ai/models) | **1.00** | 0.79 | cannot produce this output |
+| **[Qwen3.5-0.8B, fine-tuned with distil labs](https://huggingface.co/distil-labs/distil-qwen3.5-0.8b-invoice-triage)** | **1.00** | - | - |
+| **Qwen3.5-4B, fine-tuned with distil labs** ([2a](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-decision), [2b](https://huggingface.co/distil-labs/distil-qwen3.5-4b-invoice-grounded-decision)) | - | **0.98** | **0.97** |
+| [Qwen3.5-0.8B](https://huggingface.co/Qwen/Qwen3.5-0.8B), untuned | 0.70 | - | - |
+| [Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B), untuned | - | 0.41 | 0.12 |
+| [GPT-5.6 Luna](https://openrouter.ai/openai/gpt-5.6-luna), reasoning high | 1.00 | 1.00 | 1.00 |
+| [GLM 5.3](https://openrouter.ai/z-ai/glm-5.3), reasoning high | 1.00 | 0.96 | 0.96 |
+| [GPT-5.6 Luna](https://openrouter.ai/openai/gpt-5.6-luna), reasoning off | 1.00 | 0.81 | 0.75 |
+| [Gemini 3.5 Flash Lite](https://openrouter.ai/google/gemini-3.5-flash-lite) | 0.985 | 0.76 | 0.76 |
 
-Jev's step 2a score is the best of the three ways we asked it (0.84, 0.77, 0.75). A dash means the model was not trained for that step: the 0.8B model does step 1, the 4B models do step 2. What is measured, how it was scored, and breakdowns by kind of message and kind of invoice are in [Results in detail](#results-in-detail).
+Jev's step 2a score is the average of the three ways we asked it (0.84, 0.77, 0.75). A dash means the model was not trained for that step: the 0.8B model does step 1, the 4B models do step 2. What is measured, how it was scored, and breakdowns by kind of message and kind of invoice are in [Results in detail](#results-in-detail).
 
 **Which tool for which problem**
 
 | Kind of problem | In this pipeline | Use | Measured |
 |---|---|---|---|
 | **Easy classification**: the answer can be read off the input | Step 1, inbox triage | Jev, or a tiny fine-tuned model (0.8B) | Jev 1.00, fine-tuned Qwen3.5-0.8B 1.00 |
-| **Harder classification**: the answer has to be worked out, by connecting facts across documents, following multi-step rules, doing maths | Step 2a, pay or hold | A fine-tuned small model that reasons (4B) | Jev 0.84, fine-tuned Qwen3.5-4B 0.98 |
+| **Harder classification**: the answer has to be worked out, by connecting facts across documents, following multi-step rules, doing maths | Step 2a, pay or hold | A fine-tuned small model that reasons (4B) | Jev 0.79, fine-tuned Qwen3.5-4B 0.98 |
 | **Classification plus any other output**: extracted values, identifiers, text | Step 2b, pay or hold plus what is wrong and where | A fine-tuned small model (4B) | Jev cannot produce it, fine-tuned Qwen3.5-4B 0.97 |
 
 ## Quick start
@@ -246,8 +246,6 @@ Same runs as in [Results](#results), broken down by segment. Each cell is the nu
 - **Whole pipeline:** a message counts as correct when a non-invoice is kept out of step 2, or an invoice reaches step 2 and gets all six fields right.
 
 **How it was scored.** Every model gets the same task text and the same test set, at temperature 0, once. Scores are the share of test cases answered correctly. The expected answer of every test case is fixed when the case is built. For the Qwen models, step 2 scores come from the distil labs evaluation, whose LLM judge is instructed to accept an answer only if the decision (2a) or all six fields (2b) equal the expected answer. For Jev and the hosted models the same criterion is applied in code as an exact match. On the fine-tuned models the two methods give the same numbers. At 100 test cases, 0.98 means roughly 0.93 to 0.99.
-
-**The models.** Jev is TypeSafe AI's `typesafe-ai/jev`, called through the Vercel AI Gateway. GPT-5.6 Luna (OpenAI `gpt-5.6-luna`, with reasoning disabled and with reasoning effort high), Gemini 3.5 Flash Lite (Google `gemini-3.5-flash-lite`) and GLM 5.3 (Z.ai `glm-5.3`, reasoning effort high, also the teacher that generated the training data) are called through OpenRouter. The Qwen3.5 models are fine-tuned on the distil labs platform, one model per step; the untuned rows are the same models with the same prompt. A fine-tuned Qwen3.5-2B was also trained for step 1 and appears in its table.
 
 ### Step 1: inbox triage
 
