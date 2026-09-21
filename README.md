@@ -59,8 +59,10 @@ Jev, TypeSafe AI's System One model, answers typed questions about a piece of te
 | Model | Step 1: triage (accuracy ↑) | Step 2a: decision (LLM-as-a-judge ↑) | Step 2b: decision + what is wrong and where (LLM-as-a-judge ↑) |
 |---|---|---|---|
 | Jev | **1.00** | 0.84 | cannot produce this output |
-| **Qwen3.5 fine-tuned with distil labs** (0.8B at step 1, 4B at steps 2a and 2b) | **1.00** | **0.98** | **0.97** |
-| Qwen3.5 untuned (same models, same prompt) | 0.70 | 0.41 | 0.12 |
+| **Qwen3.5-0.8B, fine-tuned with distil labs** | **1.00** | - | - |
+| **Qwen3.5-4B, fine-tuned with distil labs** | - | **0.98** | **0.97** |
+| Qwen3.5-0.8B, untuned | 0.70 | - | - |
+| Qwen3.5-4B, untuned | - | 0.41 | 0.12 |
 | GPT-5.6 Luna, reasoning high | 1.00 | 1.00 | 1.00 |
 | GLM 5.3, reasoning high | 1.00 | 0.96 | 0.96 |
 | GPT-5.6 Luna, reasoning off | 1.00 | 0.81 | 0.75 |
@@ -80,13 +82,13 @@ The whole pipeline (step 1, ERP lookup, step 2b) handles **197 of 200** inbox me
 | Name | What it is |
 |---|---|
 | Jev | TypeSafe AI's System One model, `typesafe-ai/jev`, through the Vercel AI Gateway. For step 2a the table shows its best of three setups (one question per invoice line and check); the other two score 0.77 and 0.75 |
-| Qwen3.5 fine-tuned | Open-weight Qwen3.5 models fine-tuned on the distil labs platform: 0.8B for triage, 4B (trained to reason before answering) for steps 2a and 2b. A fine-tuned Qwen3.5-2B also scores 1.00 at step 1 |
-| Qwen3.5 untuned | The same models before fine-tuning, same prompt (Qwen3.5-2B untuned: 0.845 at step 1) |
+| Qwen3.5-0.8B and Qwen3.5-4B, fine-tuned | Open-weight Qwen3.5 models fine-tuned on the distil labs platform, one model per step: 0.8B for step 1, 4B (trained to reason before answering) for step 2a and another 4B for step 2b. A fine-tuned Qwen3.5-2B also scores 1.00 at step 1 |
+| Qwen3.5-0.8B and Qwen3.5-4B, untuned | The same models before fine-tuning, with the same prompt (Qwen3.5-2B untuned: 0.845 at step 1) |
 | GPT-5.6 Luna | OpenAI `gpt-5.6-luna` through OpenRouter, with reasoning disabled and with reasoning effort high |
 | Gemini 3.5 Flash Lite | Google `gemini-3.5-flash-lite` through OpenRouter |
 | GLM 5.3 | Z.ai `glm-5.3` with reasoning effort high, through OpenRouter. Also the teacher that generated the training data |
 
-**How it was scored.** Every model gets the same task text and the same test set, at temperature 0, once. Scores are the share of test cases answered correctly. The expected answer of every test case is fixed when the case is built. For the Qwen models, step 2 scores come from the distil labs evaluation, whose LLM judge is instructed to accept an answer only if the decision (2a) or all six fields (2b) equal the expected answer. For Jev and the hosted models the same criterion is applied in code as an exact match. On the fine-tuned models the two methods give the same numbers. At 100 test cases, 0.98 means roughly 0.93 to 0.99.
+**How it was scored.** Every model gets the same task text and the same test set, at temperature 0, once. Scores are the share of test cases answered correctly. The expected answer of every test case is fixed when the case is built. For the Qwen models, step 2 scores come from the distil labs evaluation, whose LLM judge is instructed to accept an answer only if the decision (2a) or all six fields (2b) equal the expected answer. For Jev and the hosted models the same criterion is applied in code as an exact match. On the fine-tuned models the two methods give the same numbers. A dash means the model was not trained or evaluated for that step: the 0.8B model does step 1, the 4B model does step 2. At 100 test cases, 0.98 means roughly 0.93 to 0.99.
 
 Breakdowns by kind of message and kind of invoice are in [Results in detail](#results-in-detail).
 
