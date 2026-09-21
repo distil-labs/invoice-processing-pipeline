@@ -7,46 +7,134 @@
 Jev, TypeSafe AI's System One model, answers typed questions about a piece of text in under half a second for a few cents per thousand calls. It does not write text and it answers in one pass. This repo is a two-step accounts payable pipeline built to find out where that is enough, where it is not, and what a small model fine-tuned on the [distil labs](https://www.distillabs.ai) platform does in the places where it is not.
 
 ```
-finance inbox
-   │
-   ▼
-[step 1] triage: invoice / receipt / payment_reminder / vendor_other / spam
-   │        Jev   or   fine-tuned Qwen3.5-0.8B
-   │
-   │ invoices only
-   │ code looks up the purchase order and the goods receipt
-   ▼
-[step 2] pay it or hold it, and if hold: what is wrong and where
-   │        fine-tuned Qwen3.5-4B, trained to reason before it answers
-   ▼
-{"decision": "hold_price", "invoice_number": "NM-84665", "po_number": "PO-48825",
- "item": "Floor marking tape, yellow", "invoiced": 14.61, "expected": 14.25}
+                  ┌──────────────────────────┐
+                  │      finance inbox       │
+                  └────────────┬─────────────┘
+                               │ every message
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 1   Triage: what kind of mail is this?                  │
+│                                                              │
+│   invoice · receipt · payment_reminder · vendor_other · spam │
+│                                                              │
+│   runs on:  Jev   or   fine-tuned Qwen3.5-0.8B               │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ invoices only
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│ ERP LOOKUP   plain code, no model                            │
+│                                                              │
+│   fetches the purchase order and the goods receipt           │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ invoice + purchase order + goods receipt
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 2   Pay it or hold it?                                  │
+│                                                              │
+│   4 checks: PO number · quantities · prices (2%) · total     │
+│                                                              │
+│   runs on:  fine-tuned Qwen3.5-4B (reasons, then answers)    │
+└──────────────────────────────┬───────────────────────────────┘
+                               ▼
+  {"decision": "hold_price", "invoice_number": "NM-84665",
+   "po_number": "PO-48825", "item": "Floor marking tape, yellow",
+   "invoiced": 14.61, "expected": 14.25}
 ```
+
+### The steps
+
+**Step 1, triage.** Every message that reaches the accounts payable inbox gets one of five labels: `invoice`, `receipt`, `payment_reminder`, `vendor_other`, `spam`. Only invoices go on. This is classification: the answer is a choice, and it can be read off the message. Jev does it, and so does a fine-tuned Qwen3.5-0.8B if the step has to run on your own hardware.
+
+**ERP lookup.** Plain code finds the purchase order and the goods receipt that belong to the invoice. In this repo a JSON file stands in for the ERP.
+
+**Step 2, pay it or hold it.** The model reads the invoice message, the purchase order and the goods receipt, and runs four checks in order: the PO number matches, no line bills more than was received, no price is more than 2% above the PO price, the total adds up. We built this step twice, because it shows two different limits of Jev:
+
+- **Step 2a, the decision only.** The answer is one of five labels: `approve`, `hold_no_po`, `hold_quantity`, `hold_price`, `hold_total`. That is the same kind of output as step 1, a choice, so Jev can be compared like for like. It exists for the comparison only.
+- **Step 2b, the decision plus what is wrong and where.** The answer is a JSON object with six fields: the decision, the invoice number, the PO number, the item that failed, and the two values that disagree. This is what a clerk can act on, and it is what the pipeline uses. Jev cannot return text, so it cannot produce it.
 
 ## Results
 
-Correct answers out of the test set size. "Untuned" is the distil labs platform's judge score (0 to 1) for the same model before fine-tuning, on the same test set. Hosted models were run once; at 100 cases, 98 correct means roughly 93 to 99 percent.
+### Models compared
 
-| Step | Jev | Fine-tuned model | Same model untuned | Hosted LLM that reasons | Hosted LLMs answering in one pass |
-|---|---|---|---|---|---|
-| 1. Triage the inbox (200 messages) | **200** | **200** (Qwen3.5-0.8B) | 0.70 | 200 | 197-200 |
-| 2a. Pay or hold (100 invoices) | 84 at best, 77 asked plainly | **98** (Qwen3.5-4B) | 0.41 | 96-100 | 76-81 |
-| 2b. Pay or hold, plus what is wrong and where (100 invoices) | cannot produce this output | **97** all six fields, 99 decisions (Qwen3.5-4B) | 0.12 | 96-100 | 75-76 |
-| The whole pipeline (200 messages) | 197 with Jev at step 1 | 197 with the 0.8B model at step 1 | | | |
+| Name in the tables | What it is |
+|---|---|
+| Jev | TypeSafe AI's System One model, `typesafe-ai/jev`, called through the Vercel AI Gateway |
+| Qwen3.5-0.8B, Qwen3.5-2B, Qwen3.5-4B, fine-tuned | Open-weight Qwen3.5 models fine-tuned on the distil labs platform. The 4B models are trained to reason before they answer |
+| Qwen3.5-0.8B, Qwen3.5-2B, Qwen3.5-4B, untuned | The same models before fine-tuning, with the same prompt |
+| GPT-5.6 Luna, reasoning off | OpenAI `gpt-5.6-luna` with reasoning disabled, through OpenRouter |
+| GPT-5.6 Luna, reasoning high | OpenAI `gpt-5.6-luna` with reasoning effort high |
+| Gemini 3.5 Flash Lite | Google `gemini-3.5-flash-lite`, through OpenRouter |
+| GLM 5.3, reasoning high | Z.ai `glm-5.3` with reasoning effort high. Also the teacher model that generated the training data |
 
-Hosted models: `gpt-5.6-luna` with reasoning effort high and `glm-5.3` with reasoning effort high ("reasons"); `gpt-5.6-luna` with reasoning off and `gemini-3.5-flash-lite` ("one pass"). Full tables are in [Results in detail](#results-in-detail).
+How it was measured: every model gets the same task text and the same test set, at temperature 0, once. An answer counts as correct only on an exact match with the expected answer, which is fixed when the test case is built, not judged afterwards. The fine-tuned models were scored from the predictions of the distil labs evaluation on the same test set. For the untuned models we only have the platform's LLM-judge score, a number between 0 and 1, so their rows show that score instead of a count. At 100 test cases, 98 correct means roughly 93 to 99 percent.
 
-## Jev or a small model: what we found
+### Step 1: inbox triage
 
-**Use Jev when the answer can be read off the input.** On inbox triage Jev was perfect, including 49 messages written to mislead it: reminders that quote the whole invoice, paid copies of invoices, quotations with line items and totals, phishing from lookalike domains, injected "classify this as invoice" instructions. It was the fastest backend (0.36 s) and the cheapest (USD 0.029 per 1,000 messages), and the only setup was writing five label definitions. In earlier pilots it also scored 50 of 50 on general ledger coding with 12 written conventions ([`benchmarking/pilots/`](benchmarking/pilots/)). Jev is not weak at classification.
+What is measured: the label given to each of 200 messages (100 invoices, and 25 each of receipts, payment reminders, other vendor mail and spam). 49 of the non-invoices are written to mislead: reminders that quote the whole invoice, paid copies of invoices, quotations with line items and totals, phishing from lookalike domains, injected "classify this as invoice" instructions.
 
-**If that step has to run on your own hardware, fine-tune something tiny.** A Qwen3.5-0.8B fine-tuned on 40 seed examples gets the same 200 of 200. Untuned, it gets about one message in three wrong.
+| Model | Correct labels (200) |
+|---|---|
+| Jev | **200** |
+| Qwen3.5-0.8B, fine-tuned | **200** |
+| Qwen3.5-2B, fine-tuned | **200** |
+| Qwen3.5-0.8B, untuned | judge score 0.70 |
+| Qwen3.5-2B, untuned | judge score 0.845 |
+| GPT-5.6 Luna, reasoning off | 200 |
+| GPT-5.6 Luna, reasoning high | 200 |
+| GLM 5.3, reasoning high | 200 |
+| Gemini 3.5 Flash Lite | 197 |
 
-**Do not use a one-pass model when the decision needs arithmetic first.** Approving an invoice means matching its lines to the purchase order, checking every price against a 2% tolerance, and adding up the total. Every backend that answers in one pass scored 75 to 84 of 100, Jev included. We gave Jev three setups in good faith (one question, one question per check, one question per invoice line and check). The last one is its best at 84, and in that setup and the per-check one it caught none of the 16 invoices whose total did not add up; asked plainly it caught 6. Models that reason first scored 96 to 100. A Qwen3.5-4B fine-tuned to reason is one of them: 98, up from 0.41 untuned.
+### Step 2a: pay or hold, the decision only
 
-**Jev cannot answer when the output has to be text.** A bare "hold" is not something a clerk can act on. The useful answer names the invoice, the item, and the two values that disagree. Jev returns a choice, a score, or a yes/no probability, never a string. The fine-tuned 4B model gets all six fields right on 97 of 100 invoices, level with hosted models that reason (96 to 100) and 21 points above the ones that do not.
+What is measured: the decision for each of 100 invoices, given the invoice message, the purchase order and the goods receipt. 32 should be approved (20 of them are near misses, for example a price 1.8% above the PO price), 60 fail exactly one check, 8 fail two checks at once. Jev was asked in three ways, all reported.
 
-**Together they cover the workflow.** Jev at step 1 and the fine-tuned model at step 2: 197 of 200 messages handled correctly, no routing errors.
+| Model | Correct decisions (100) |
+|---|---|
+| Qwen3.5-4B, fine-tuned | **98** |
+| Qwen3.5-4B, untuned | judge score 0.41 |
+| Jev, one question per invoice line and check | 84 |
+| Jev, one question with the whole task | 77 |
+| Jev, one question per check | 75 |
+| GPT-5.6 Luna, reasoning high | 100 |
+| GLM 5.3, reasoning high | 96 |
+| GPT-5.6 Luna, reasoning off | 81 |
+| Gemini 3.5 Flash Lite | 76 |
+
+### Step 2b: pay or hold, plus what is wrong and where
+
+What is measured: the six-field answer for the same 100 invoices. An invoice counts as correct only when all six fields are right: decision, invoice number, PO number, failing item, invoiced value, expected value.
+
+| Model | All six fields correct (100) |
+|---|---|
+| Qwen3.5-4B, fine-tuned | **97** |
+| Qwen3.5-4B, untuned | judge score 0.12 |
+| Jev | cannot produce this output |
+| GPT-5.6 Luna, reasoning high | 100 |
+| GLM 5.3, reasoning high | 96 |
+| Gemini 3.5 Flash Lite | 76 |
+| GPT-5.6 Luna, reasoning off | 75 |
+
+### The whole pipeline
+
+What is measured: all 200 inbox messages go through step 1, and the ones labelled `invoice` go through the ERP lookup and step 2b. A message counts as correct when a non-invoice is kept out of step 2, or an invoice reaches step 2 and gets all six fields right.
+
+| Step 1 | Step 2b | Served with | Handled correctly (200) |
+|---|---|---|---|
+| Jev | Qwen3.5-4B, fine-tuned | vLLM on an NVIDIA L4, bf16 | **197** |
+| Qwen3.5-0.8B, fine-tuned | Qwen3.5-4B, fine-tuned | vLLM on an NVIDIA L4, bf16 | **197** |
+| Qwen3.5-0.8B, fine-tuned | Qwen3.5-4B, fine-tuned | llama.cpp on a laptop (Apple M4 Pro), Q8_0 GGUF | **197** |
+
+Breakdowns by kind of message and kind of invoice are in [Results in detail](#results-in-detail).
+
+## Jev or a small model
+
+- **Classification: use Jev.** 200 of 200 on triage, including all 49 misleading messages. Fastest (0.36 s) and cheapest (USD 0.029 per 1,000 messages) of everything we tried, and the only setup is five label definitions.
+- **Classification on your own hardware: fine-tune a 0.8B model.** Same 200 of 200. Untuned, the same model scores 0.70.
+- **Decisions that need arithmetic: not a one-pass model, Jev included.** One-pass models score 75 to 84 of 100; models that reason score 96 to 100. Jev's best setup caught 0 of 16 wrong totals. The fine-tuned 4B model that reasons scores 98, up from 0.41 untuned.
+- **Answers that contain text: Jev cannot produce them.** It returns a choice, a score or a probability. The fine-tuned 4B model gets all six fields right on 97 of 100 invoices, level with hosted models that reason and 21 points above the ones that do not.
+- **Both together: 197 of 200 messages handled correctly**, with no routing errors and no frontier model call.
+
+Jev is not weak at classification: in earlier pilots it also scored 50 of 50 on general ledger coding with 12 written conventions ([`benchmarking/pilots/`](benchmarking/pilots/)). Its limit is the design: one pass, and a choice as output.
 
 ## Quick start
 
@@ -196,63 +284,66 @@ Otherwise `approve`. Invoices arrive as email text in the vendor's own style: ab
 
 ## Results in detail
 
-### Step 1: inbox triage, 200 messages
+Same runs as in [Results](#results), broken down by segment. Each cell is the number of correct answers in that segment; the segment size is in the column header. Measured as described above: exact match, temperature 0, one run. For the untuned models only an overall judge score exists, so they have no segment numbers.
 
-| Backend | Correct | Misleading messages (49) | Invoices missed / non-invoices sent to step 2 | Median latency | USD per 1,000 |
-|---|---|---|---|---|---|
-| Jev, one choice question | 200 | 49 | 0 / 0 | 0.36 s | 0.029 |
-| **Qwen3.5-0.8B fine-tuned** | **200** | 49 | 0 / 0 | your hardware | |
-| **Qwen3.5-2B fine-tuned** | **200** | 49 | 0 / 0 | your hardware | |
-| Qwen3.5-0.8B untuned | judge 0.70 | | | | |
-| Qwen3.5-2B untuned | judge 0.845 | | | | |
-| gpt-5.6-luna, reasoning off | 200 | 49 | 0 / 0 | 0.91 s | 0.090 |
-| gpt-5.6-luna, reasoning effort high | 200 | 49 | 0 / 0 | 0.92 s | 0.093 |
-| glm-5.3, reasoning effort high | 200 | 49 | 0 / 0 | 0.70 s | 0.448 |
-| gemini-3.5-flash-lite | 197 | 47 | 1 / 0 | 0.60 s | 0.138 |
+### Step 1: inbox triage
 
-This test set does not rank the hosted models; nearly everything is at the ceiling. It supports "Jev is as good as anything here, and cheaper and faster", not more.
+Segments are the true label of the message. "Misleading" counts the 49 non-invoices written to look like another label; they are also included in their own label's column.
 
-### Step 2a: the decision only, 100 invoices
-
-| Backend | Correct | Approve (32) | No PO (12) | Quantity (16) | Price (16) | Total (16) | Two failing checks (8) |
+| Model | Total (200) | Segment: invoice (100) | Segment: receipt (25) | Segment: payment reminder (25) | Segment: other vendor mail (25) | Segment: spam (25) | Segment: misleading (49) |
 |---|---|---|---|---|---|---|---|
-| **Qwen3.5-4B fine-tuned with reasoning** | **98** | 30 | 12 | 16 | 16 | 16 | 8 |
-| Qwen3.5-4B untuned, thinking on | judge 0.41 | | | | | | |
-| Jev, one boolean per invoice line and check | 84 | 32 | 12 | 16 | 16 | 0 | 8 |
-| Jev, one choice question with the whole task | 77 | 22 | 12 | 14 | 16 | 6 | 7 |
-| Jev, one boolean per check | 75 | 26 | 12 | 15 | 15 | 0 | 7 |
-| gpt-5.6-luna, reasoning effort high | 100 | 32 | 12 | 16 | 16 | 16 | 8 |
-| glm-5.3, reasoning effort high (the teacher) | 96 | 30 | 12 | 16 | 15 | 15 | 8 |
-| gpt-5.6-luna, reasoning off | 81 | 23 | 12 | 16 | 16 | 6 | 8 |
-| gemini-3.5-flash-lite | 76 | 21 | 12 | 16 | 15 | 6 | 6 |
+| Jev | 200 | 100 | 25 | 25 | 25 | 25 | 49 |
+| Qwen3.5-0.8B, fine-tuned | 200 | 100 | 25 | 25 | 25 | 25 | 49 |
+| Qwen3.5-2B, fine-tuned | 200 | 100 | 25 | 25 | 25 | 25 | 49 |
+| GPT-5.6 Luna, reasoning off | 200 | 100 | 25 | 25 | 25 | 25 | 49 |
+| GPT-5.6 Luna, reasoning high | 200 | 100 | 25 | 25 | 25 | 25 | 49 |
+| GLM 5.3, reasoning high | 200 | 100 | 25 | 25 | 25 | 25 | 49 |
+| Gemini 3.5 Flash Lite | 197 | 99 | 23 | 25 | 25 | 25 | 47 |
 
-Asking Jev one question per invoice line fixes its false holds on prices inside the tolerance (32 of 32 approvals), but a total has no per-line decomposition. Both errors of the fine-tuned model are slips in the running sum on line totals in the thousands.
+This test set does not rank the hosted models; nearly everything is at the ceiling. It supports "Jev is as good as anything here", not more.
 
-### Step 2b: the decision plus what is wrong and where, 100 invoices
+### Step 2a: the decision only
 
-A case counts only when all six fields are right.
+Segments are the kind of invoice: should be approved, fails exactly one check (wrong PO number, quantity, price, total), or fails two checks at once, where the first failing check in the policy order is the right answer.
 
-| Backend | All six fields | Decision | Invoice number | PO number | Item | Invoiced | Expected |
+| Model | Total (100) | Segment: approve (32) | Segment: wrong PO number (12) | Segment: quantity (16) | Segment: price (16) | Segment: total (16) | Segment: two failing checks (8) |
 |---|---|---|---|---|---|---|---|
-| **Qwen3.5-4B fine-tuned with reasoning** | **97** | 99 | 100 | 100 | 100 | 99 | 97 |
-| Qwen3.5-4B untuned, thinking on | judge 0.12 | | | | | | |
-| Jev | cannot produce this output | | | | | | |
-| gpt-5.6-luna, reasoning effort high | 100 | 100 | 100 | 100 | 100 | 100 | 100 |
-| glm-5.3, reasoning effort high (the teacher) | 96 | 96 | 100 | 100 | 98 | 96 | 96 |
-| gemini-3.5-flash-lite | 76 | 76 | 100 | 100 | 85 | 76 | 76 |
-| gpt-5.6-luna, reasoning off | 75 | 75 | 100 | 100 | 91 | 75 | 75 |
+| Qwen3.5-4B, fine-tuned | 98 | 30 | 12 | 16 | 16 | 16 | 8 |
+| Jev, one question per invoice line and check | 84 | 32 | 12 | 16 | 16 | 0 | 8 |
+| Jev, one question with the whole task | 77 | 22 | 12 | 14 | 16 | 6 | 7 |
+| Jev, one question per check | 75 | 26 | 12 | 15 | 15 | 0 | 7 |
+| GPT-5.6 Luna, reasoning high | 100 | 32 | 12 | 16 | 16 | 16 | 8 |
+| GLM 5.3, reasoning high | 96 | 30 | 12 | 16 | 15 | 15 | 8 |
+| GPT-5.6 Luna, reasoning off | 81 | 23 | 12 | 16 | 16 | 6 | 8 |
+| Gemini 3.5 Flash Lite | 76 | 21 | 12 | 16 | 15 | 6 | 6 |
 
-Every model copies the identifiers correctly. What separates them is the decision, as in 2a. All three errors of the fine-tuned model are additions: two correct `hold_total` decisions with a computed total off by 10 and by 20, and one false hold on a six-line invoice above USD 16,000. Expect roughly 1 invoice in 30 to need a second look, almost always a large total.
+The one-pass models fail in two places: they raise false holds on approvals with a price inside the 2% tolerance, and they miss totals that do not add up. Asking Jev one question per invoice line fixes the first (32 of 32 approvals) but not the second, because a total has no per-line decomposition. Both errors of the fine-tuned model are slips in the running sum on line totals in the thousands.
 
-### The whole pipeline, 200 messages
+### Step 2b: the decision plus what is wrong and where
 
-| Step 1 | Step 2 | Served with | Handled correctly end to end | Routing errors | Invoices: right decision / all six fields |
-|---|---|---|---|---|---|
-| Jev | fine-tuned Qwen3.5-4B | vLLM, bf16 | 197 / 200 | 0 | 99 / 97 of 100 |
-| fine-tuned Qwen3.5-0.8B | fine-tuned Qwen3.5-4B | vLLM, bf16 | 197 / 200 | 0 | 99 / 97 of 100 |
-| fine-tuned Qwen3.5-0.8B | fine-tuned Qwen3.5-4B | llama.cpp, Q8_0 GGUF, on a laptop (Apple M4 Pro) | 197 / 200 | 0 | 99 / 97 of 100 |
+Same segments as step 2a. A case counts only when all six fields are right.
 
-The laptop run took 12 minutes for the 200 messages with four requests in flight.
+| Model | Total (100) | Segment: approve (32) | Segment: wrong PO number (12) | Segment: quantity (16) | Segment: price (16) | Segment: total (16) | Segment: two failing checks (8) |
+|---|---|---|---|---|---|---|---|
+| Qwen3.5-4B, fine-tuned | 97 | 31 | 12 | 16 | 16 | 14 | 8 |
+| GPT-5.6 Luna, reasoning high | 100 | 32 | 12 | 16 | 16 | 16 | 8 |
+| GLM 5.3, reasoning high | 96 | 30 | 12 | 16 | 16 | 14 | 8 |
+| Gemini 3.5 Flash Lite | 76 | 19 | 12 | 16 | 15 | 6 | 8 |
+| GPT-5.6 Luna, reasoning off | 75 | 16 | 12 | 16 | 16 | 7 | 8 |
+
+Every model copies the invoice number and the PO number correctly on all 100 invoices; what separates the models is the decision. The fine-tuned model gets the decision right on 99 of 100. Its three errors are all additions: two correct `hold_total` decisions with a computed total off by 10 and by 20, and one false hold on a six-line invoice above USD 16,000. Expect roughly 1 invoice in 30 to need a second look, almost always a large total.
+
+### The whole pipeline
+
+Segments are the two halves of the inbox: non-invoices, which are correct when they are kept out of step 2, and invoices, which are correct when they reach step 2 and get all six fields right.
+
+| Step 1 + step 2b | Served with | Total (200) | Segment: non-invoices (100) | Segment: invoices (100) |
+|---|---|---|---|---|
+| Jev + Qwen3.5-4B, fine-tuned | vLLM on an NVIDIA L4, bf16 | 197 | 100 | 97 |
+| Qwen3.5-0.8B, fine-tuned + Qwen3.5-4B, fine-tuned | vLLM on an NVIDIA L4, bf16 | 197 | 100 | 97 |
+| Qwen3.5-0.8B, fine-tuned + Qwen3.5-4B, fine-tuned | llama.cpp on a laptop (Apple M4 Pro), Q8_0 GGUF | 197 | 100 | 97 |
+
+Step 1 made no routing error in any run, so every miss comes from step 2. Quantizing to Q8_0 and moving from vLLM to llama.cpp cost no accuracy.
 
 ### Speed and where the models run
 
@@ -262,25 +353,11 @@ The step 2 model writes about 340 tokens per invoice (its reasoning plus the ans
 
 ## How we trained the models
 
-All three models were trained on the [distil labs](https://www.distillabs.ai) platform through its CLI, with one recipe. Each model's inputs and a short how-to are in [`training/`](training/).
+**The problem.** Step 2 needs a model that matches invoice lines to PO lines across different wording, does a handful of multiplications, comparisons and one addition chain, and then writes a structured answer. Small models cannot do that without fine-tuning: Qwen3.5-4B with thinking on scores 0.41 on the decision and 0.12 on the full answer. One-pass models of any size score 75 to 84, because they cannot compute before they answer.
 
-**The problem.** Step 2 needs a model that matches invoice lines to PO lines across different wording, does a handful of multiplications, comparisons and one addition chain, and then writes a structured answer. Small models without fine-tuning cannot do it: Qwen3.5-4B with thinking on scores 0.41 on the decision and 0.12 on the full answer. One-pass models of any size get about 75 to 84 because they cannot compute before answering.
+**Seed data, synthetic training set, tuned model.** All three models were trained on the [distil labs](https://www.distillabs.ai) platform through its CLI, with one recipe. We wrote about 40 seed examples and a fixed test set per model. For step 2, each seed answer carries its reasoning in a fixed terse format: the checks in policy order, one short line per invoice line, the 2% ceiling, a running sum, stop at the first failure, about 150 tokens. From the seed examples and the task description, a teacher model (`glm-5.3` with reasoning effort high) generated the training set: 3,124 examples for triage, 4,156 for the decision model, 4,056 for the grounded decision model. Mutators in `config.yaml` steer the mix: which decision to produce, how close the numbers are to the thresholds, invoice layout, number and order of lines, item naming, freight and stray amounts, order size. With `enable_thinking: true` the teacher also writes the reasoning for every example, in the format of the seeds, and the student is fine-tuned to produce that reasoning before its answer. The platform then evaluates the untuned and the tuned student on the test set. Test vendors, items and templates never appear in the seed examples, and the teacher never sees a test case.
 
-**A pilot that pointed the way.** Before training anything we asked hosted models without reasoning to write their working into the answer (per-line checks, the price ceiling, a running sum) before the decision. That alone lifted them from about 40 of 60 to 57-60 of 60 on an earlier version of the task. So the model to train was one that writes its working, and the working had to be short.
-
-**Seed data with computed reasoning.** Each model starts from 40 seed examples and a fixed test set. For step 2, every number, decision and answer field is computed in code, so a label cannot be wrong by an arithmetic slip; only the surface text of the invoice varies. Every seed answer also carries its reasoning, computed in code in a fixed terse format: checks in policy order, one short line per invoice line, the 2% ceiling to four decimals, a running sum, stop at the first failure. Median length: about 150 tokens. Test vendors, items and templates never appear in the seed examples, and the teacher never sees a test case.
-
-**Synthetic data from a teacher.** The teacher, `glm-5.3` with high reasoning, generates a few thousand examples per model (3,124 for triage, 4,156 for the decision model, 4,056 for the grounded decision model). With `enable_thinking: true` it also writes the reasoning for each example, and it copied the seed format exactly. Mutators steer the mix: the decision to produce, how close the numbers are to the thresholds, invoice layout, number and order of lines, item naming, freight and stray amounts, order size. We tuned them on small generation runs of about 200 examples before each full run.
-
-**No filtering.** The students were trained on exactly what the pipeline generated. We measured that data but did not edit it: an independent check (a model extracts the numbers, code applies the policy) agrees with the teacher's label on 98.8% of the decision data and on all six fields for 99.0% of the grounded decision data; for triage an independent labeler agrees on 97.5%.
-
-**Results.**
-
-| Model | Base | Thinking | Synthetic examples | Untuned | Fine-tuned | Teacher |
-|---|---|---|---|---|---|---|
-| Triage (step 1) | Qwen3.5-0.8B | off | 3,124 | 0.70 | 200 / 200 | 200 / 200 |
-| Decision (step 2a) | Qwen3.5-4B | on | 4,156 | 0.41 | 98 / 100 | 96-97 / 100 |
-| Grounded decision (step 2b) | Qwen3.5-4B | on | 4,056 | 0.12 | 97 / 100 all six fields | 96-100 / 100 |
+Each model's inputs and a short how-to are in [`training/`](training/).
 
 ## Train your own
 
