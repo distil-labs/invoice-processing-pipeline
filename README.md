@@ -1,5 +1,3 @@
-<!-- DRAFT for review (GATE 3). Before publication: banner image, LICENSE, check TypeSafe's terms on publishing benchmark results. Remove this comment. -->
-
 # Jev or a fine-tuned small model? An accounts payable pipeline that uses both
 
 **Jev for the decisions that can be read off the input, a fine-tuned 4B model for the ones that have to be worked out and written down. 197 of 200 messages handled correctly end to end, with no frontier model call, runnable on a laptop.**
@@ -387,6 +385,7 @@ How we kept the comparison fair:
 | `training/` | For each model: job description, config, seed and test data, and a README on training it with distil labs |
 | `benchmarking/` | The benchmark scripts and the raw responses behind every table |
 | `.env.example` | The environment variables the pipeline and the benchmarks read |
+| `LICENSE` | Apache 2.0 |
 
 ## Links
 
